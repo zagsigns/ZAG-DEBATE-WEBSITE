@@ -16,9 +16,18 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from django.conf import settings # Import settings
+from django.conf.urls.static import static # Import static functions
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    # API Router
     path('api/accounts/', include('accounts.urls')),
     path('api/debates/', include('debates.urls')),
+    path('api/payments/', include('payments.urls')),
 ]
+
+# Only for development: Serve media files like profile pictures
+if settings.DEBUG:
+    # You must define MEDIA_URL and MEDIA_ROOT in settings.py first
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

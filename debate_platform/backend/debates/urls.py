@@ -1,14 +1,7 @@
 from django.urls import path
-from .views import (
-    DebateListCreateView,
-    DebateRetrieveUpdateDeleteView,
-    JoinDebateView,
-    LeaveDebateView
-)
+from .views import DebateListCreateView, DebateDetailView
 
 urlpatterns = [
-    path('', DebateListCreateView.as_view(), name='debate_list_create'),
-    path('<int:pk>/', DebateRetrieveUpdateDeleteView.as_view(), name='debate_detail'),
-    path('<int:pk>/join/', JoinDebateView.as_view(), name='debate_join'),
-    path('<int:pk>/leave/', LeaveDebateView.as_view(), name='debate_leave'),
+    path('', DebateListCreateView.as_view(), name='debate-list-create'),
+    path('<int:id>/', DebateDetailView.as_view(), name='debate-detail'),
 ]

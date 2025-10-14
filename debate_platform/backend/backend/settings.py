@@ -9,6 +9,7 @@ https://docs.djangoproject.com/en/5.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
+import os
 
 from pathlib import Path
 
@@ -195,3 +196,12 @@ CORS_ALLOWED_ORIGINS = [
 
 
 ASGI_APPLICATION = "backend.asgi.application"
+
+
+# BASE_DIR should already be defined or imported at the top:
+# import os
+# BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+MEDIA_URL = '/media/'
+# This tells Django to store media in a folder named 'media' inside your 'backend' project directory
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')

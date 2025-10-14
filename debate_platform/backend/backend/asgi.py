@@ -8,9 +8,23 @@ https://docs.djangoproject.com/en/5.2/howto/deployment/asgi/
 """
 
 import os
-
+from channels.auth import AuthMiddlewareStack
+from channels.routing import ProtocolTypeRouter, URLRouter
 from django.core.asgi import get_asgi_application
+
+# Assume you will create debates/routing.py next
+import debates.routing 
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings')
 
-application = get_asgi_application()
+# The main router for the project
+application = ProtocolTypeRouter({
+    "http": get_asgi_application(), # Standard HTTP handling (for DRF)
+    # WebSocket handling
+    "websocket": AuthMiddlewareStack(
+        # The URLRouter will look for definitions in debates/routing.py
+        URLRouter(
+            debates.routing.websocket_urlpatterns 
+        )
+    ),
+})

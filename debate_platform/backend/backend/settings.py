@@ -205,3 +205,15 @@ ASGI_APPLICATION = "backend.asgi.application"
 MEDIA_URL = '/media/'
 # This tells Django to store media in a folder named 'media' inside your 'backend' project directory
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+
+# Set the ASGI application (the entry point for Channels)
+ASGI_APPLICATION = 'zag_debate_platform.asgi.application' # <--- ADD THIS LINE
+
+# Channels Layer Configuration (for production, use Redis. For now, we use a simple in-memory layer)
+CHANNEL_LAYERS = {
+    "default": {
+        # Using the in-memory backend for development simplicity
+        "BACKEND": "channels.layers.InMemoryChannelLayer" 
+    }
+}

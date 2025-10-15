@@ -1,50 +1,44 @@
-import React, { useState, useEffect } from 'react';
-import axiosInstance from '../api/axios';
+import React from 'react';
+import { CreditCard, User } from 'lucide-react'; 
 
-function ProfileInfo() {
-  const [balance, setBalance] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    // Fetch credit balance (Subscription status will be similar)
-    const fetchCreditBalance = async () => {
-      try {
-        const response = await axiosInstance.get('payments/credits/balance/', {
-          // You need to manually attach the token for Axios instance. 
-          // Best practice is to modify axios.js to automatically attach JWT.
-          // For now, assume auth is handled by a token interceptor if you didn't set one up.
-        });
-        setBalance(response.data.balance);
-      } catch (error) {
-        console.error("Failed to fetch credit balance:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchCreditBalance();
-  }, []);
-
-  if (loading) return <div className="p-4 bg-white rounded-lg shadow-md">Loading Profile...</div>;
+// This component uses hardcoded values for now, but will eventually take props for balance and status.
+const ProfileInfo = () => {
+  const creditBalance = 150;
+  const subscriptionStatus = 'Pro'; // or 'Basic'
 
   return (
-    <div className="p-4 bg-white rounded-lg shadow-xl mb-4">
-      <h3 className="font-semibold text-xl border-b pb-2 text-indigo-600">Your Status</h3>
-      
-      <div className="mt-3">
-        <p className="text-gray-700 font-medium">Credits Balance:</p>
-        <span className="text-3xl font-extrabold text-green-500">{balance !== null ? balance : 'N/A'}</span>
+    <header className="bg-gray-900 shadow-md sticky top-0 z-50">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-3 flex justify-between items-center">
+        
+        {/* Logo/Platform Name */}
+        <div className="text-2xl font-bold text-teal-400">
+          DebateFlow
+        </div>
+        
+        {/* User Status and Navigation */}
+        <div className="flex items-center space-x-4">
+          
+          {/* Credits Badge (ProfileInfo) */}
+          <div className="flex items-center space-x-1 p-2 bg-gray-800 rounded-full border border-gray-700">
+            <CreditCard className="w-5 h-5 text-yellow-400" />
+            <span className="text-sm font-semibold text-white hidden sm:inline">
+              {creditBalance} Credits
+            </span>
+          </div>
+
+          {/* Subscription Status (ProfileInfo) */}
+          <span className={`px-3 py-1 text-sm font-bold rounded-full ${subscriptionStatus === 'Pro' ? 'bg-indigo-600 text-white' : 'bg-gray-600 text-gray-200'}`}>
+            {subscriptionStatus.toUpperCase()}
+          </span>
+
+          {/* User Icon/Profile Link */}
+          <button className="p-2 rounded-full bg-indigo-700 hover:bg-indigo-600 transition duration-150">
+            <User className="w-6 h-6 text-white" />
+          </button>
+        </div>
       </div>
-      
-      <div className="mt-4">
-        <p className="text-gray-700 font-medium">Subscription:</p>
-        <span className="text-lg font-semibold text-yellow-600">Free Trial Active</span> {/* Placeholder */}
-      </div>
-      
-      <button className="mt-4 w-full py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition">
-        Manage Subscriptions/Credits
-      </button>
-    </div>
+    </header>
   );
-}
+};
 
 export default ProfileInfo;

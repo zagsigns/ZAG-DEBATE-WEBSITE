@@ -1,44 +1,88 @@
 // frontend/src/App.jsx
 
 import React from 'react';
-// You need to install React Router DOM if you haven't yet: npm install react-router-dom
+// Import routing utilities
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import Header from './components/Layout/Header'; 
-import DebateListPage from "./pages/Debates/DebateListPage"; 
 
-// A simple component for placeholder pages
-const TempPage = ({ title }) => <div className="p-10 text-white text-center text-3xl">{title}</div>;
+// ===================================
+// 1. Layout & Core Components
+// ===================================
+
+// TEMP Header Placeholder (Keep this simple until you build Header.jsx)
+const Header = ({ isLoggedIn, isAdmin }) => (
+    <div className="fixed top-0 w-full bg-gray-800/90 backdrop-blur-sm shadow-lg z-50 p-4 text-center text-teal-400">
+        <span className="font-bold text-xl">DebatePlatform Nav - {isLoggedIn ? 'Logged In' : 'Logged Out'}</span> 
+    </div>
+);
+
+// TEMP Placeholder for all other pages
+const TempPage = ({ title }) => (
+    <div className="min-h-screen pt-20 flex items-center justify-center bg-gray-900 text-white">
+        <div className="p-10 text-center text-3xl bg-gray-800 rounded-xl shadow-2xl border border-gray-700">
+            {title}
+        </div>
+    </div>
+);
+
+
+// ===================================
+// 2. Page Imports (CORRECTED PATH BELOW)
+// ===================================
+import HomePage from './pages/HomePage';
+// *** CORRECTED LINE ***: The path now points to the 'components' subdirectory.
+import DebateList from './pages/components/DebateList'; 
 
 
 function App() {
-    // --- TEMPORARY STATE FOR TESTING THE HEADER WOW LOOK ---
-    // Adjust these to test different user states!
+    // --- TEMPORARY STATE FOR TESTING USER ROLES ---
     const isUserLoggedIn = true; 
-    const isUserAdmin = false; 
-    // -----------------------------------------------------
+    const isUserAdmin = true; 
+    // ---------------------------------------------
 
     return (
         <Router>
             {/* The Header is persistent across all routes */}
             <Header isLoggedIn={isUserLoggedIn} isAdmin={isUserAdmin} /> 
             
-            {/* Main content wrapper with dark background */}
-            <main className="min-h-screen bg-gray-900 text-white">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                    <Routes>
-                        {/* Use the Debate List as the home page */}
-                        <Route path="/" element={<DebateListPage />} /> 
-                        
-                        {/* Placeholder Routes */}
-                        <Route path="/dashboard" element={<TempPage title="User Dashboard - Coming Soon!" />} />
-                        <Route path="/create" element={<TempPage title="Create New Debate - Form Here" />} />
-                        <Route path="/login" element={<TempPage title="Login / Register Forms Here" />} />
-                        <Route path="/admin" element={<TempPage title="Admin Control Panel" />} />
-                        {/* Add other crucial routes like /debates/:id */}
-                        <Route path="*" element={<TempPage title="404 - Page Not Found" />} />
-                    </Routes>
-                </div>
+            {/* Main content area: accounts for fixed header height (pt-16) */}
+            <main className="bg-gray-900 text-white min-h-screen pt-16">
+                <Routes>
+                    
+                    {/* === PUBLIC ROUTES === */}
+                    <Route path="/" element={<HomePage />} /> 
+                    <Route path="/debates" element={<DebateList />} />
+                    <Route path="/debate/:id" element={<TempPage title="Debate Detail Page - ID: :id" />} />
+                    <Route path="/login" element={<TempPage title="Login / Register Forms Here" />} />
+                    <Route path="/register" element={<TempPage title="Login / Register Forms Here" />} />
+                    
+                    {/* === PROTECTED USER/CREATOR ROUTES === */}
+                    <Route 
+                        path="/dashboard" 
+                        element={isUserLoggedIn 
+                            ? <TempPage title="User Dashboard: Profile, Credits, Subscriptions" /> 
+                            : <TempPage title="Access Denied. Please Login." />}
+                    />
+                    <Route 
+                        path="/create" 
+                        element={isUserLoggedIn 
+                            ? <TempPage title="Create New Debate Form" /> 
+                            : <TempPage title="Access Denied. Please Login." />}
+                    />
+
+                    {/* === PROTECTED ADMIN ROUTES === */}
+                    <Route 
+                        path="/admin" 
+                        element={isUserAdmin 
+                            ? <TempPage title="Admin Control Panel: Users, Debates, Commissions" /> 
+                            : <TempPage title="Admin Access Denied." />}
+                    />
+                    
+                    {/* === FALLBACK ROUTE === */}
+                    <Route path="*" element={<TempPage title="404 - Page Not Found" />} />
+                </Routes>
             </main>
+            
+            {/* Footer component goes here */}
         </Router>
     );
 }

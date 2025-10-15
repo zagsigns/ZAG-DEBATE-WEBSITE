@@ -1,55 +1,66 @@
+// frontend/src/api/axios.js
+
 import axios from "axios";
-// NOTE: This file assumes you import `jwtDecode` from `jwt-decode`
 import { jwtDecode } from "jwt-decode"; 
 
-const baseURL = "http://127.0.0.1:8000/api/";
+// 1. Define the Base URL for your Django Backend
+// Make sure your Django server is running on this address!
+const baseURL = "http://127.0.0.1:8000/api/"; 
 
+// 2. Create the primary Axios Instance
 const axiosInstance = axios.create({
-  baseURL: baseURL,
-  headers: { "Content-Type": "application/json" },
+    baseURL: baseURL,
+    timeout: 5000,
+    headers: {
+        "Content-Type": "application/json",
+        accept: "application/json",
+    },
 });
 
-// Request Interceptor: Attach Access Token
-axiosInstance.interceptors.request.use(async (config) => {
-    const authTokens = localStorage.getItem('authTokens') ? JSON.parse(localStorage.getItem('authTokens')) : null;
+// 3. Request Interceptor for JWT Refresh (Professional Authentication Handling)
+axiosInstance.interceptors.request.use(
+    async (config) => {
+        const token = localStorage.getItem("access_token");
+        
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+            
+            // Check if the token is expired
+            try {
+                const user = jwtDecode(token);
+                const isExpired = user.exp * 1000 < Date.now();
+                
+                if (!isExpired) return config; // Token is good
 
-    if (authTokens) {
-        const user = jwtDecode(authTokens.access);
-        const isExpired = user.exp * 1000 < Date.now();
+                // Token is expired, try to refresh it
+                const refresh_token = localStorage.getItem("refresh_token");
+                if (refresh_token) {
+                    const response = await axios.post(`${baseURL}token/refresh/`, {
+                        refresh: refresh_token,
+                    });
 
-        // If token is NOT expired, attach it and continue
-        if (!isExpired) {
-            config.headers.Authorization = `Bearer ${authTokens.access}`;
-            return config;
+                    // Update local storage with the new token
+                    localStorage.setItem("access_token", response.data.access);
+                    
+                    // Update the header for the current request
+                    config.headers.Authorization = `Bearer ${response.data.access}`;
+                    return config;
+                }
+            } catch (error) {
+                // If decoding or refresh fails, treat it as expired and force login
+                console.error("Token refresh failed or token invalid:", error);
+                localStorage.removeItem("access_token");
+                localStorage.removeItem("refresh_token");
+                // Redirect to the login page
+                window.location.href = "/login"; 
+                return Promise.reject(error);
+            }
         }
-
-        // If token IS expired, try to refresh it
-        try {
-            const refreshResponse = await axios.post(`${baseURL}accounts/token/refresh/`, {
-                refresh: authTokens.refresh
-            });
-            
-            const newTokens = refreshResponse.data;
-            localStorage.setItem('authTokens', JSON.stringify(newTokens));
-            
-            // Set new token in header
-            config.headers.Authorization = `Bearer ${newTokens.access}`;
-            return config;
-            
-        } catch (error) {
-            // Refresh failed (e.g., refresh token is also invalid)
-            console.error("Token refresh failed. Logging out.");
-            localStorage.removeItem('authTokens');
-            // Redirect to login page (can't use React Router here, so rely on subsequent protected route checks)
-            // Or, simply reject the request.
-            return Promise.reject(error);
-        }
+        return config;
+    },
+    (error) => {
+        return Promise.reject(error);
     }
-    
-    // No tokens, continue request without auth header
-    return config;
-}, (error) => {
-    return Promise.reject(error);
-});
+);
 
 export default axiosInstance;

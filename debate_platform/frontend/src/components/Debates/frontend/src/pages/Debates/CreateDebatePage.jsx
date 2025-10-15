@@ -5,9 +5,9 @@ import CreateDebateForm from '../../components/Debates/CreateDebateForm';
 
 const CreateDebatePage = () => {
     return (
-        // The container uses the dark theme and centers the form
-        <div className="py-10 bg-gray-900 min-h-screen">
-            <div className="max-w-3xl mx-auto px-4">
+        <div className="py-10">
+            {/* The max-w-3xl centers the form and makes it look clean and focused */}
+            <div className="max-w-3xl mx-auto">
                 <CreateDebateForm />
             </div>
         </div>

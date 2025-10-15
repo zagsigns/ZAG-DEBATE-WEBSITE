@@ -1,0 +1,183 @@
+import React from 'react';
+import { ChevronRight, Users, MessageCircle, Zap, TrendingUp, ShieldCheck, Gem } from 'lucide-react'; // Added more icons
+
+const HomePage = () => {
+  return (
+    <div className="min-h-screen bg-gray-900 text-white font-sans">
+      {/* Hero Section */}
+      <section className="relative h-screen flex items-center justify-center text-center overflow-hidden p-4 sm:p-8">
+        {/* Background Overlay for text readability */}
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-gray-800 to-indigo-900 opacity-90 z-10"></div>
+        
+        {/* Optional: Add a subtle background image or pattern here */}
+        {/* Example: <img src="/images/debate-bg.jpg" alt="Debate background" className="absolute inset-0 w-full h-full object-cover opacity-30" /> */}
+        
+        <div className="relative z-20 max-w-4xl mx-auto">
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white leading-tight mb-4 drop-shadow-lg">
+            Elevate Your Voice. Engage in Insightful Debates.
+          </h1>
+          <p className="text-lg sm:text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
+            Join a vibrant community where informed opinions shape the future. Explore diverse perspectives on today's most pressing topics.
+          </p>
+          <div className="flex flex-col sm:flex-row justify-center gap-4">
+            <a 
+              href="/debates" 
+              className="inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-full shadow-lg text-white bg-teal-600 hover:bg-teal-700 transition duration-300 ease-in-out transform hover:-translate-y-1 hover:scale-105"
+            >
+              Explore Debates <ChevronRight className="ml-2 -mr-1 h-5 w-5" />
+            </a>
+            <a 
+              href="/about" 
+              className="inline-flex items-center justify-center px-8 py-3 border border-gray-600 text-base font-medium rounded-full shadow-lg text-gray-300 bg-gray-800 hover:bg-gray-700 hover:border-gray-500 transition duration-300 ease-in-out transform hover:-translate-y-1 hover:scale-105"
+            >
+              Learn More
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* Feature Showcase Section */}
+      <section className="py-16 sm:py-24 bg-gray-900 px-4 sm:px-8">
+        <div className="max-w-6xl mx-auto text-center">
+          <h2 className="text-3xl sm:text-4xl font-extrabold text-teal-400 mb-12">Why Participate in Debates?</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 sm:gap-12">
+            {/* Feature Card 1 */}
+            <div className="bg-gray-800 rounded-xl p-8 shadow-xl border border-gray-700 hover:border-indigo-500 transform hover:scale-105 transition duration-300">
+              <Users className="h-12 w-12 text-indigo-500 mx-auto mb-6 p-2 bg-gray-700 rounded-full" />
+              <h3 className="text-xl font-bold text-white mb-3">Connect & Collaborate</h3>
+              <p className="text-gray-400 leading-relaxed">
+                Engage with a global community of thinkers. Exchange ideas, challenge assumptions, and build connections.
+              </p>
+            </div>
+            {/* Feature Card 2 */}
+            <div className="bg-gray-800 rounded-xl p-8 shadow-xl border border-gray-700 hover:border-teal-500 transform hover:scale-105 transition duration-300">
+              <MessageCircle className="h-12 w-12 text-teal-500 mx-auto mb-6 p-2 bg-gray-700 rounded-full" />
+              <h3 className="text-xl font-bold text-white mb-3">Sharpen Your Arguments</h3>
+              <p className="text-gray-400 leading-relaxed">
+                Develop critical thinking and communication skills. Learn to articulate your views persuasively and respectfully.
+              </p>
+            </div>
+            {/* Feature Card 3 */}
+            <div className="bg-gray-800 rounded-xl p-8 shadow-xl border border-gray-700 hover:border-amber-500 transform hover:scale-105 transition duration-300">
+              <TrendingUp className="h-12 w-12 text-amber-500 mx-auto mb-6 p-2 bg-gray-700 rounded-full" />
+              <h3 className="text-xl font-bold text-white mb-3">Influence & Innovate</h3>
+              <p className="text-gray-400 leading-relaxed">
+                Contribute to meaningful discussions that can lead to new insights and even influence real-world change.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* How It Works / Value Proposition Section */}
+      <section className="py-16 sm:py-24 bg-gray-800 px-4 sm:px-8">
+        <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+          <div className="lg:order-2">
+            {/* Replace with an illustrative image or animation */}
+            {/* Example: <img src="/images/platform-overview.png" alt="Platform Overview" className="rounded-xl shadow-2xl border border-gray-700" /> */}
+            <div className="bg-gray-700 h-64 sm:h-80 rounded-xl flex items-center justify-center text-gray-400 text-lg shadow-2xl border border-gray-600">
+              <Zap className="h-16 w-16 mr-4 text-indigo-400 animate-pulse" /> Engaging Visual Here
+            </div>
+          </div>
+          <div className="lg:order-1 text-center lg:text-left">
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-white mb-6 leading-tight">
+              Seamlessly Engage in Structured Discussions.
+            </h2>
+            <p className="text-lg text-gray-300 mb-6">
+              Our platform provides a fair and moderated environment, ensuring every voice is heard and every argument is considered. From trending topics to niche subjects, find your debate.
+            </p>
+            <ul className="space-y-4 text-left inline-block lg:block">
+                <li className="flex items-start text-gray-300">
+                    <ShieldCheck className="h-6 w-6 text-teal-400 mr-3 mt-1 flex-shrink-0" />
+                    <p>Moderated discussions ensure respect and focus.</p>
+                </li>
+                <li className="flex items-start text-gray-300">
+                    <Gem className="h-6 w-6 text-indigo-400 mr-3 mt-1 flex-shrink-0" />
+                    <p>Structured formats for clear, concise arguments.</p>
+                </li>
+                <li className="flex items-start text-gray-300">
+                    <Users className="h-6 w-6 text-amber-400 mr-3 mt-1 flex-shrink-0" />
+                    <p>Community voting and sentiment analysis features.</p>
+                </li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      {/* Testimonials Section */}
+      <section className="py-16 sm:py-24 bg-gray-900 px-4 sm:px-8">
+        <div className="max-w-6xl mx-auto text-center">
+          <h2 className="text-3xl sm:text-4xl font-extrabold text-teal-400 mb-12">What Our Debaters Say</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 sm:gap-12">
+            {/* Testimonial Card 1 */}
+            <div className="bg-gray-800 rounded-xl p-8 shadow-xl border border-gray-700">
+              <p className="text-lg italic text-gray-300 mb-6">
+                "This platform has transformed how I engage with complex topics. The quality of discussion is unparalleled, and I've learned so much!"
+              </p>
+              <div className="flex items-center justify-center">
+                <img 
+                  src="https://via.placeholder.com/50/4ade80/FFFFFF?text=A" 
+                  alt="Avatar" 
+                  className="rounded-full h-12 w-12 mr-4 border-2 border-teal-500" 
+                />
+                <div>
+                  <p className="font-bold text-white">Alex Johnson</p>
+                  <p className="text-sm text-gray-400">Policy Analyst</p>
+                </div>
+              </div>
+            </div>
+            {/* Testimonial Card 2 */}
+            <div className="bg-gray-800 rounded-xl p-8 shadow-xl border border-gray-700">
+              <p className="text-lg italic text-gray-300 mb-6">
+                "Finally, a place for thoughtful debate without the noise. The moderation is excellent, and the community is genuinely insightful."
+              </p>
+              <div className="flex items-center justify-center">
+                <img 
+                  src="https://via.placeholder.com/50/8b5cf6/FFFFFF?text=M" 
+                  alt="Avatar" 
+                  className="rounded-full h-12 w-12 mr-4 border-2 border-indigo-500" 
+                />
+                <div>
+                  <p className="font-bold text-white">Maria Rodriguez</p>
+                  <p className="text-sm text-gray-400">Student & Researcher</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Final Call to Action */}
+      <section className="py-16 sm:py-24 bg-gradient-to-r from-indigo-800 to-purple-900 px-4 sm:px-8 text-center">
+        <div className="max-w-3xl mx-auto">
+          <h2 className="text-3xl sm:text-4xl font-extrabold text-white mb-6 leading-tight">
+            Ready to Dive into the Discussion?
+          </h2>
+          <p className="text-lg text-indigo-200 mb-8">
+            Your perspective matters. Join the conversation and explore hundreds of active debates today.
+          </p>
+          <a 
+            href="/debates" 
+            className="inline-flex items-center justify-center px-10 py-4 border border-transparent text-lg font-semibold rounded-full shadow-2xl text-white bg-teal-500 hover:bg-teal-600 transition duration-300 ease-in-out transform hover:-translate-y-1 hover:scale-105"
+          >
+            Start Debating Now <ChevronRight className="ml-2 -mr-1 h-6 w-6" />
+          </a>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="bg-gray-950 text-gray-400 py-8 px-4 sm:px-8 text-center border-t border-gray-800">
+        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-center">
+          <p className="mb-4 sm:mb-0">&copy; {new Date().getFullYear()} DebatePlatform. All rights reserved.</p>
+          <nav className="flex space-x-6">
+            <a href="/privacy" className="hover:text-white transition duration-200">Privacy Policy</a>
+            <a href="/terms" className="hover:text-white transition duration-200">Terms of Service</a>
+            <a href="/contact" className="hover:text-white transition duration-200">Contact Us</a>
+          </nav>
+        </div>
+      </footer>
+    </div>
+  );
+};
+
+export default HomePage;

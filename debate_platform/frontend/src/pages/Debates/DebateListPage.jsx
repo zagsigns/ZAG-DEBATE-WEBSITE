@@ -1,8 +1,7 @@
 // frontend/src/pages/Debates/DebateListPage.jsx
 
 import React from 'react';
-import DebateList from '../../components/Debates/DebateList';
-
+import DebateList from "./pages/DebateListPage.jsx";
 const DebateListPage = () => {
     // Return the core component directly. 
     // All styling (like margin/padding) should be handled either in App.tsx 

@@ -75,13 +75,30 @@ const Header = ({ isLoggedIn, isAdmin }) => {
 };
 
 // ===================================
-// 2. Page Component: HomePage
+// 2. Core Component: Footer (FIXED)
+// ===================================
+const Footer = () => (
+    <footer className="bg-gray-950 text-gray-400 py-8 px-4 sm:px-8 text-center border-t border-gray-800">
+        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-center">
+            <p className="mb-4 sm:mb-0">&copy; {new Date().getFullYear()} DebatePlatform. All rights reserved.</p>
+            <nav className="flex space-x-6">
+                <Link to="/privacy" className="hover:text-white transition duration-200">Privacy Policy</Link>
+                <Link to="/terms" className="hover:text-white transition duration-200">Terms of Service</Link>
+                <Link to="/contact" className="hover:text-white transition duration-200">Contact Us</Link>
+            </nav>
+        </div>
+    </footer>
+);
+
+// ===================================
+// 3. Page Component: HomePage
 // ===================================
 const HomePage = () => {
     return (
         <div className="min-h-screen bg-gray-900 text-white font-sans">
             {/* Hero Section */}
-            <section className="relative h-screen flex items-center justify-center text-center overflow-hidden p-4 sm:p-8">
+            {/* Reduced h-screen to account for the fixed header and use mt-16 for spacing */}
+            <section className="relative h-[calc(100vh-64px)] mt-16 flex items-center justify-center text-center overflow-hidden p-4 sm:p-8">
                 <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-gray-800 to-indigo-900 opacity-90 z-10"></div>
                 
                 <div className="relative z-20 max-w-4xl mx-auto">
@@ -235,30 +252,113 @@ const HomePage = () => {
                     </Link>
                 </div>
             </section>
-
-            {/* Footer */}
-            <footer className="bg-gray-950 text-gray-400 py-8 px-4 sm:px-8 text-center border-t border-gray-800">
-                <div className="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-center">
-                    <p className="mb-4 sm:mb-0">&copy; {new Date().getFullYear()} DebatePlatform. All rights reserved.</p>
-                    <nav className="flex space-x-6">
-                        <Link to="/privacy" className="hover:text-white transition duration-200">Privacy Policy</Link>
-                        <Link to="/terms" className="hover:text-white transition duration-200">Terms of Service</Link>
-                        <Link to="/contact" className="hover:text-white transition duration-200">Contact Us</Link>
-                    </nav>
-                </div>
-            </footer>
         </div>
     );
 };
 
 // ===================================
-// 3. Page Component: DebateList
+// New Component: DebateCard (Used by DebateList)
+// ===================================
+const DebateCard = ({ title, category, status, proCount, conCount }) => (
+    <div className="bg-gray-800 p-6 rounded-xl shadow-lg border-l-4 border-orange-500 hover:shadow-2xl transition duration-300 transform hover:-translate-y-0.5">
+        <div className="flex justify-between items-start mb-3">
+            <span className="text-sm font-semibold text-orange-400 uppercase tracking-wider">{category}</span>
+            <span className={`text-xs font-medium px-3 py-1 rounded-full ${
+                status === 'Active' ? 'bg-green-600 text-white' : 'bg-gray-600 text-gray-300'
+            }`}>
+                {status}
+            </span>
+        </div>
+        <h3 className="text-xl font-bold text-white mb-4 line-clamp-2">{title}</h3>
+        <div className="flex justify-between items-center text-sm text-gray-400">
+            <div className="flex items-center space-x-4">
+                <span className="flex items-center">
+                    <Users className="w-4 h-4 mr-1 text-indigo-400" />
+                    Pro: <span className="text-indigo-300 font-bold ml-1">{proCount}</span>
+                </span>
+                <span className="flex items-center">
+                    <MessageCircle className="w-4 h-4 mr-1 text-red-400" />
+                    Con: <span className="text-red-300 font-bold ml-1">{conCount}</span>
+                </span>
+            </div>
+            <Link 
+                to="/debate/123" // Placeholder link
+                className="text-orange-400 hover:text-orange-300 flex items-center font-medium"
+            >
+                Join Debate <ChevronRight className="w-4 h-4 ml-1" />
+            </Link>
+        </div>
+    </div>
+);
+
+
+// ===================================
+// 4. Page Component: DebateList (FIXED)
 // ===================================
 const DebateList = () => {
+    // Sample Data
+    const debates = [
+        { id: 1, title: "Should AI art be protected by copyright law? The ethical and legal dilemma.", category: "Technology", status: "Active", proCount: 45, conCount: 32 },
+        { id: 2, title: "Is Universal Basic Income (UBI) a viable long-term economic strategy?", category: "Economics", status: "Active", proCount: 88, conCount: 61 },
+        { id: 3, title: "The necessity of space exploration vs. focusing resources on Earth's problems.", category: "Science", status: "Closed", proCount: 120, conCount: 95 },
+        { id: 4, title: "Mandatory remote work policy for all non-essential service jobs: Pros and Cons.", category: "Policy", status: "Active", proCount: 15, conCount: 18 },
+    ];
+
     return (
-        <div className="min-h-screen pt-20 flex items-center justify-center bg-gray-900 text-white">
-            <div className="p-10 text-center text-3xl bg-gray-800 rounded-xl shadow-2xl border border-gray-700">
-                Debate List Page (Needs Content)
+        <div className="min-h-screen pt-10 pb-16 bg-gray-900 text-white">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                
+                {/* Title and Action */}
+                <header className="flex justify-between items-center mb-10 pt-4">
+                    <h1 className="text-4xl font-extrabold text-white">
+                        Active Debates 💬
+                    </h1>
+                    <Link 
+                        to="/create" 
+                        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-full shadow-lg text-gray-900 bg-teal-500 hover:bg-teal-600 transition duration-150"
+                    >
+                        <PlusCircle className="w-5 h-5 mr-2" /> Start New Debate
+                    </Link>
+                </header>
+
+                {/* Search and Filter Bar */}
+                <div className="mb-10 bg-gray-800 p-4 rounded-xl shadow-inner border border-gray-700 flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4">
+                    <input 
+                        type="text"
+                        placeholder="Search debate topics..."
+                        className="flex-grow p-3 rounded-lg bg-gray-700 border border-gray-600 text-white placeholder-gray-400 focus:ring-orange-500 focus:border-orange-500"
+                    />
+                    <select className="p-3 rounded-lg bg-gray-700 border border-gray-600 text-white focus:ring-orange-500 focus:border-orange-500">
+                        <option>All Categories</option>
+                        <option>Technology</option>
+                        <option>Economics</option>
+                        <option>Science</option>
+                        <option>Policy</option>
+                    </select>
+                    <select className="p-3 rounded-lg bg-gray-700 border border-gray-600 text-white focus:ring-orange-500 focus:border-orange-500">
+                        <option>Sort By: Trending</option>
+                        <option>Sort By: Newest</option>
+                        <option>Sort By: Most Votes</option>
+                    </select>
+                </div>
+                
+                {/* Debate List Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    {debates.map(debate => (
+                        <DebateCard 
+                            key={debate.id} 
+                            title={debate.title} 
+                            category={debate.category} 
+                            status={debate.status} 
+                            proCount={debate.proCount} 
+                            conCount={debate.conCount} 
+                        />
+                    ))}
+                    {debates.length === 0 && (
+                        <p className="col-span-full text-center text-gray-400 text-xl py-12">No active debates match your criteria.</p>
+                    )}
+                </div>
+
             </div>
         </div>
     );
@@ -266,7 +366,7 @@ const DebateList = () => {
 
 
 // ===================================
-// 4. Placeholder Component
+// 5. Placeholder Component
 // ===================================
 // TEMP Placeholder for all other pages
 const TempPage = ({ title }) => (
@@ -279,7 +379,7 @@ const TempPage = ({ title }) => (
 
 
 // ===================================
-// 5. Main App Component
+// 6. Main App Component
 // ===================================
 function App() {
     // --- TEMPORARY STATE FOR TESTING USER ROLES ---
@@ -292,8 +392,8 @@ function App() {
             {/* The Header component is used here */}
             <Header isLoggedIn={isUserLoggedIn} isAdmin={isUserAdmin} /> 
             
-            {/* Main content area: Accounts for fixed header height (pt-20 is safer than pt-16) */}
-            <main className="bg-gray-900 text-white min-h-screen pt-20">
+            {/* Main content area: The pt-20 className here correctly offsets the fixed header for ALL routes */}
+            <main className="bg-gray-900 text-white min-h-screen pt-16">
                 <Routes>
                     
                     {/* === PUBLIC ROUTES === */}
@@ -302,6 +402,12 @@ function App() {
                     <Route path="/debate/:id" element={<TempPage title="Debate Detail Page - ID: :id" />} />
                     <Route path="/login" element={<TempPage title="Login / Register Forms Here" />} />
                     <Route path="/register" element={<TempPage title="Login / Register Forms Here" />} />
+                    
+                    {/* Utility Routes (FIXED: Added missing routes from Footer/HomePage links) */}
+                    <Route path="/privacy" element={<TempPage title="Privacy Policy Page" />} />
+                    <Route path="/terms" element={<TempPage title="Terms of Service Page" />} />
+                    <Route path="/contact" element={<TempPage title="Contact Us Page" />} />
+                    <Route path="/about" element={<TempPage title="About Us Page" />} />
                     
                     {/* === PROTECTED USER/CREATOR ROUTES === */}
                     <Route 
@@ -330,8 +436,8 @@ function App() {
                 </Routes>
             </main>
             
-            {/* Footer component logic is now within HomePage for its specific section,
-                but for a complex app, a shared Footer component would go here. */}
+            {/* The Footer is now placed outside of the <main> and <Routes> so it appears consistently */}
+            <Footer />
         </Router>
     );
 }

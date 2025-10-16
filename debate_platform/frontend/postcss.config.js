@@ -1,11 +1,12 @@
-// postcss.config.js (New/Correct)
+// postcss.config.js
 
+/** @type {import('postcss').Config} */
 export default {
   plugins: {
-    // 1. Use the new official PostCSS plugin for Tailwind CSS
-    '@tailwindcss/postcss': {}, 
+    // 1. Correct and standard plugin name for Tailwind CSS
+    tailwindcss: {}, 
     
-    // 2. Keep or add any other PostCSS plugins (like Autoprefixer)
-    'autoprefixer': {},
+    // 2. Autoprefixer for vendor prefixes
+    autoprefixer: {},
   },
 }

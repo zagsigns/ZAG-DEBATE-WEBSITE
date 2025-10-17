@@ -1,6 +1,6 @@
 import { useState, useEffect, createContext, useContext } from 'react';
 import { BrowserRouter as Router, useLocation, useNavigate, Link } from 'react-router-dom';
-import { LogOut, User, Home, Zap, PlusCircle, Settings, UserPlus, Send, Loader, Edit, Trash2, Mail, Lock, Key } from 'lucide-react';
+import { LogOut, User, Home, Zap, PlusCircle, Settings, UserPlus, Send, Loader, Edit, Trash2, Mail, Lock, Key, Filter, Activity, Clock, CheckCircle } from 'lucide-react';
 
 // --- CONTEXT & HOOKS ---
 const AuthContext = createContext(null);
@@ -216,9 +216,9 @@ const DebateCard = ({ debate }) => {
 const DebateList = ({ debates }) => {
     if (debates.length === 0) {
         return (
-            <div className="text-center py-10">
+            <div className="text-center py-10 bg-gray-800/50 rounded-lg p-6">
                 <p className="text-lg text-gray-400">No debates available in this category.</p>
-                <Link to="/create" className="text-indigo-400 hover:text-indigo-300 mt-2 inline-block">
+                <Link to="/create" className="text-indigo-400 hover:text-indigo-300 mt-2 inline-block font-medium">
                     Be the first to create one!
                 </Link>
             </div>
@@ -770,9 +770,8 @@ const RegisterPage = () => {
  * 6. HomePage Component
  */
 const HomePage = ({ debates }) => {
-    const activeDebates = debates.filter(d => d.status === 'Active' || d.status === 'Pending');
-    const completedDebates = debates.filter(d => d.status === 'Completed');
-
+    const activeDebates = debates.filter(d => d.status === 'Active' || d.status === 'Pending').slice(0, 6); // Show top 6
+    
     return (
         <div className="space-y-12">
             <header className="text-center py-16 bg-gray-800 rounded-xl shadow-lg border border-indigo-500/20">
@@ -792,21 +791,14 @@ const HomePage = ({ debates }) => {
             {/* Active Debates Section */}
             <section>
                 <h2 className="text-3xl font-bold text-white border-b-2 border-indigo-500 pb-2 mb-6">
-                    Active Debates
+                    Featured Debates
                 </h2>
                 <DebateList debates={activeDebates} />
-            </section>
-
-            {/* Completed Debates Section */}
-            <section>
-                <h2 className="text-3xl font-bold text-white border-b-2 border-indigo-500 pb-2 mb-6">
-                    Completed Debates
-                </h2>
-                {completedDebates.length > 0 ? (
-                    <DebateList debates={completedDebates} />
-                ) : (
-                    <p className="text-gray-400">No debates have been completed yet.</p>
-                )}
+                <div className="text-center mt-8">
+                    <Link to="/debates" className="text-lg font-bold text-indigo-400 hover:text-indigo-300 transition-colors flex items-center justify-center">
+                        <Filter className="w-5 h-5 mr-2" /> View All Debates
+                    </Link>
+                </div>
             </section>
         </div>
     );
@@ -839,7 +831,7 @@ const CreateDebatePage = ({ addDebate }) => {
 
     const handleNewDebate = (debateData) => {
         addDebate(debateData);
-        navigate('/'); // Redirect to home page after creation
+        navigate('/debates'); // Redirect to all debates page after creation
     };
 
     return (
@@ -856,27 +848,112 @@ const CreateDebatePage = ({ addDebate }) => {
     );
 };
 
+/**
+ * 8. AllDebatesPage Component (NEW)
+ */
+const AllDebatesPage = ({ debates }) => {
+    const [filter, setFilter] = useState('All'); // 'All', 'Active', 'Pending', 'Completed'
+
+    const filteredDebates = debates.filter(debate => {
+        if (filter === 'All') return true;
+        return debate.status === filter;
+    });
+
+    const filterOptions = [
+        { name: 'All', icon: Filter },
+        { name: 'Active', icon: Activity },
+        { name: 'Pending', icon: Clock },
+        { name: 'Completed', icon: CheckCircle },
+    ];
+
+    return (
+        <div className="space-y-8">
+            <header>
+                <h1 className="text-4xl font-extrabold text-white mb-2 flex items-center">
+                    <Zap className="w-8 h-8 mr-3 text-indigo-400" /> All Debates
+                </h1>
+                <p className="text-gray-400">Browse current, upcoming, and past discussions on the ZAG Debate platform.</p>
+            </header>
+
+            {/* Filter Tabs */}
+            <div className="flex flex-wrap gap-4 p-4 bg-gray-800 rounded-lg shadow-inner">
+                {filterOptions.map(({ name, icon: Icon }) => (
+                    <button
+                        key={name}
+                        onClick={() => setFilter(name)}
+                        className={`
+                            flex items-center px-4 py-2 rounded-full font-semibold text-sm transition-all
+                            ${filter === name 
+                                ? 'bg-indigo-600 text-white shadow-lg' 
+                                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                            }
+                        `}
+                    >
+                        <Icon className="w-4 h-4 mr-2" />
+                        {name} ({debates.filter(d => name === 'All' || d.status === name).length})
+                    </button>
+                ))}
+            </div>
+
+            {/* Debate List */}
+            <section>
+                <h2 className="text-2xl font-bold text-white mb-4">
+                    Showing: {filter} Debates
+                </h2>
+                <DebateList debates={filteredDebates} />
+            </section>
+        </div>
+    );
+};
+
 // --- MAIN APP COMPONENT ---
 
-// Sample debate data to manage application state
+// Initial hardcoded list of debates
 const initialDebates = [
     { id: 1, title: "The use of AI in education should be limited.", createdBy: "Alice", status: "Active", pros: 15, cons: 12 },
     { id: 2, title: "Remote work is permanently better than office work.", createdBy: "Bob", status: "Active", pros: 20, cons: 25 },
     { id: 3, title: "Universal Basic Income is a viable economic strategy.", createdBy: "Charlie", status: "Pending", pros: 8, cons: 5 },
     { id: 4, title: "Cryptocurrency is a passing fad.", createdBy: "Diana", status: "Completed", pros: 30, cons: 35 },
+    { id: 5, title: "Should schools offer mandatory financial literacy classes?", createdBy: "Eve", status: "Active", pros: 18, cons: 2 },
+    { id: 6, title: "Is it ethical to eat lab-grown meat?", createdBy: "Frank", status: "Pending", pros: 12, cons: 10 },
+    { id: 7, title: "The metric system should be mandatory worldwide.", createdBy: "Grace", status: "Completed", pros: 45, cons: 15 },
+    { id: 8, title: "Does social media harm mental health?", createdBy: "Heidi", status: "Active", pros: 50, cons: 5 },
+    { id: 9, title: "Should the voting age be lowered to 16?", createdBy: "Ivan", status: "Completed", pros: 22, cons: 28 },
 ];
+
+// Helper to get initial state from localStorage or use default
+const getInitialDebates = () => {
+    const savedDebates = localStorage.getItem('debateList');
+    try {
+        if (savedDebates) {
+            return JSON.parse(savedDebates);
+        }
+    } catch (e) {
+        console.error("Could not parse saved debates from localStorage", e);
+    }
+    return initialDebates;
+};
+
 
 const AppContent = () => {
     const location = useLocation();
-    const [debates, setDebates] = useState(initialDebates);
+    // 1. Load from localStorage or use initialDebates if nothing is saved
+    const [debates, setDebates] = useState(getInitialDebates);
     const [content, setContent] = useState(null);
+
+    // 2. Save to localStorage whenever debates change
+    useEffect(() => {
+        localStorage.setItem('debateList', JSON.stringify(debates));
+    }, [debates]);
+
 
     // Function to add a new debate
     const addDebate = (newDebateData) => {
+        const nextId = debates.length > 0 ? Math.max(...debates.map(d => d.id)) + 1 : 1;
         const newDebate = {
-            id: debates.length + 1,
+            id: nextId,
             ...newDebateData,
-            createdBy: 'Admin', // Placeholder
+            createdBy: 'User', // Placeholder
             status: 'Pending',
             pros: 0,
             cons: 0,
@@ -893,8 +970,10 @@ const AppContent = () => {
         switch (path) {
             case '/':
             case '/home':
-            case '/debates':
                 currentPage = <HomePage debates={debates} />;
+                break;
+            case '/debates': // ROUTE UPDATED
+                currentPage = <AllDebatesPage debates={debates} />;
                 break;
             case '/create':
                 currentPage = <CreateDebatePage addDebate={addDebate} />;
@@ -905,7 +984,7 @@ const AppContent = () => {
             case '/login':
                 currentPage = <LoginPage />;
                 break;
-            case '/register': // RE-ADDED Register Route
+            case '/register': 
                 currentPage = <RegisterPage />;
                 break;
             case '/forgot-password': 
@@ -918,7 +997,7 @@ const AppContent = () => {
                     const debate = debates.find(d => d.id === debateId);
                     // For now, redirect dynamic pages to a TempPage
                     currentPage = debate 
-                        ? <TempPage title={`Debate ID: ${debateId}`} />
+                        ? <TempPage title={`Debate: ${debate.title}`} />
                         : <TempPage title="Debate Not Found" />;
                 } else {
                     currentPage = <TempPage title="404 - Page Not Found" />;

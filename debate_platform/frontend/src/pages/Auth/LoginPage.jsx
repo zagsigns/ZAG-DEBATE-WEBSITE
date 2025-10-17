@@ -1,71 +1,90 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { LogIn } from 'lucide-react';
+// The relative path is corrected to go up two levels (out of 'auth' and 'pages')
+// since the file structure is /pages/auth/LoginPage.jsx
+import useAuth from '../../hooks/useAuth.jsx';
 
-function LoginPage() {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const { loginUser } = useAuth();
-  const navigate = useNavigate();
+const LoginPage = () => {
+    const { login, isLoggedIn } = useAuth();
+    const navigate = useNavigate();
+    
+    // State management for username and password
+    const [username, setUsername] = useState('');
+    const [password, setPassword] = useState('');
+    const [error, setError] = useState('');
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
+    useEffect(() => {
+        if (isLoggedIn) {
+            navigate('/');
+        }
+    }, [isLoggedIn, navigate]);
 
-    const result = await loginUser(username, password);
+    const handleLogin = (e) => {
+        e.preventDefault();
+        setError('');
 
-    if (result.success) {
-      navigate('/dashboard'); // Redirect to dashboard on success
-    } else {
-      // Handle known login errors (e.g., 401 Unauthorized)
-      setError(result.error || 'Invalid credentials or connection error.');
-    }
-  };
+        if (username.trim() && password.trim()) {
+            // Note: Currently, the mock 'login' function in useAuth only uses the username for tracking.
+            login(username.trim()); 
+        } else {
+            setError('Both username and password are required.');
+        }
+    };
 
-  return (
-    <div className="flex items-center justify-center min-h-[80vh]">
-      <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-xl shadow-2xl">
-        <h2 className="text-3xl font-extrabold text-center text-indigo-700">
-          Sign In
-        </h2>
-        {error && <p className="text-red-600 text-center font-medium">{error}</p>}
-        <form className="space-y-6" onSubmit={handleSubmit}>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Username</label>
-            <input
-              type="text"
-              required
-              className="mt-1 w-full p-3 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Password</label>
-            <input
-              type="password"
-              required
-              className="mt-1 w-full p-3 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </div>
-          <button
-            type="submit"
-            className="w-full py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-          >
-            Log in
-          </button>
-        </form>
-        <div className="text-sm text-center">
-          <Link to="/register" className="font-medium text-indigo-600 hover:text-indigo-500">
-            Don't have an account? Register
-          </Link>
+    return (
+        <div className="min-h-screen flex flex-col items-center justify-center p-4">
+            <div className="w-full max-w-sm p-8 bg-gray-800 rounded-xl shadow-2xl border border-indigo-500/30">
+                <h1 className="text-3xl font-extrabold text-white text-center mb-6">Welcome Back</h1>
+                <p className="text-center text-gray-400 mb-8">Sign in to start debating.</p>
+
+                {/* Display Error Message */}
+                {error && (
+                    <p className="text-red-500 text-center font-medium mb-4">{error}</p>
+                )}
+
+                <form onSubmit={handleLogin} className="space-y-6">
+                    <div>
+                        <label htmlFor="username" className="block text-sm font-medium text-gray-300">
+                            Username
+                        </label>
+                        <input
+                            type="text"
+                            id="username"
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                            required
+                            className="mt-1 w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                            placeholder="e.g., debate_master_99"
+                        />
+                    </div>
+
+                    {/* Password Field */}
+                    <div>
+                        <label htmlFor="password" className="block text-sm font-medium text-gray-300">
+                            Password
+                        </label>
+                        <input
+                            type="password"
+                            id="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            required
+                            className="mt-1 w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                            placeholder="••••••••"
+                        />
+                    </div>
+
+                    <button
+                        type="submit"
+                        className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-md text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+                    >
+                        <LogIn className="w-5 h-5 mr-2" /> Sign In
+                    </button>
+                </form>
+            </div>
         </div>
-      </div>
-    </div>
-  );
-}
+    );
+};
 
 export default LoginPage;

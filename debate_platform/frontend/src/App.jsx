@@ -1,18 +1,16 @@
-import React, { useState, useEffect, createContext, useContext } from 'react';
+import { useState, useEffect, createContext, useContext } from 'react';
 import { BrowserRouter as Router, useLocation, useNavigate, Link } from 'react-router-dom';
-import { LogOut, User, Home, Zap, PlusCircle, Settings, UserPlus, Send, Loader, Edit, Trash2 } from 'lucide-react';
+import { LogOut, User, Home, Zap, PlusCircle, Settings, UserPlus, Send, Loader, Edit, Trash2, Mail, Lock, Key } from 'lucide-react';
 
 // --- CONTEXT & HOOKS ---
-// 1. Auth Context for global state management
 const AuthContext = createContext(null);
 
-// 2. Mock authentication hook (simulating API calls with localStorage)
+// Mock authentication logic using localStorage for persistence
 const useAuth = () => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Retrieve user state from local storage on initial load
         const storedUser = localStorage.getItem('debate_user');
         if (storedUser) {
             setUser({ 
@@ -25,7 +23,7 @@ const useAuth = () => {
 
     const login = (username) => {
         setLoading(true);
-        // Simulate a successful login
+        // Using username as email surrogate for simplicity
         localStorage.setItem('debate_user', username);
         setUser({ 
             username, 
@@ -36,11 +34,27 @@ const useAuth = () => {
 
     const logout = () => {
         setLoading(true);
-        // Simulate a successful logout
         localStorage.removeItem('debate_user');
         setUser(null);
         setLoading(false);
     };
+
+    // Mock function for password reset
+    const resetPassword = async (email) => {
+        // Simulate API call and success/failure
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        console.log(`Password reset email simulated sent to: ${email}`);
+        return true; 
+    }
+    
+    // Mock function for registration
+    const register = async (username, email, password) => {
+        // Simulate API call and success/failure
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        console.log(`User registered: ${username}, ${email}`);
+        // In a real app, we would log the user in here or redirect to login
+        return true;
+    }
 
     return {
         user,
@@ -48,6 +62,8 @@ const useAuth = () => {
         loading,
         login,
         logout,
+        resetPassword,
+        register,
     };
 };
 
@@ -60,7 +76,7 @@ const useAuthContext = () => useContext(AuthContext);
 
 // --- COMPONENTS ---
 
-// 3. Common Components
+// 1. Common Components
 const NavLink = ({ to, children }) => (
     <Link 
         to={to} 
@@ -115,12 +131,21 @@ const Header = () => {
                                 </button>
                             </>
                         ) : (
-                            <Link 
-                                to="/login" 
-                                className="flex items-center px-3 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors"
-                            >
-                                <User className="w-4 h-4 mr-1" /> Sign In
-                            </Link>
+                            // LOGGED OUT STATE: Includes Register and Sign In buttons
+                            <>
+                                <Link 
+                                    to="/register" 
+                                    className="flex items-center px-3 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors"
+                                >
+                                    <UserPlus className="w-4 h-4 mr-1" /> Register
+                                </Link>
+                                <Link 
+                                    to="/login" 
+                                    className="flex items-center px-3 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors"
+                                >
+                                    <User className="w-4 h-4 mr-1" /> Sign In
+                                </Link>
+                            </>
                         )}
                     </div>
                 </div>
@@ -156,7 +181,7 @@ const TempPage = ({ title }) => {
     );
 };
 
-// 4. Debate Components
+// 2. Debate Components 
 const DebateCard = ({ debate }) => {
     const statusColor = debate.status === 'Active' ? 'bg-green-600' : 
                         debate.status === 'Pending' ? 'bg-yellow-600' : 'bg-red-600';
@@ -386,8 +411,8 @@ const CreateDebateForm = ({ onSubmit }) => {
 // --- PAGES (Components used for routing) ---
 
 /**
- * 5. LoginPage Component
- * Handles user login and redirecting upon successful authentication.
+ * 3. LoginPage Component
+ * Handles user login and links to Forgot Password page (Register link added).
  */
 const LoginPage = () => {
     const { login, isLoggedIn } = useAuthContext();
@@ -408,6 +433,7 @@ const LoginPage = () => {
         setError('');
 
         if (username.trim() && password.trim()) {
+            // NOTE: In a real app, you would validate credentials here
             login(username.trim()); 
         } else {
             setError('Both username and password are required.');
@@ -455,6 +481,12 @@ const LoginPage = () => {
                         />
                     </div>
 
+                    <div className="flex justify-end">
+                        <Link to="/forgot-password" className="text-sm font-medium text-indigo-400 hover:text-indigo-300 transition-colors">
+                            Forgot Password?
+                        </Link>
+                    </div>
+
                     <button
                         type="submit"
                         className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-md text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
@@ -462,17 +494,282 @@ const LoginPage = () => {
                         <LogOut className="w-5 h-5 mr-2 transform rotate-180" /> Sign In
                     </button>
                 </form>
+                {/* Registration link RE-ADDED here */}
+                <div className="mt-6 text-center text-sm">
+                    <p className="text-gray-400">
+                        Don't have an account? 
+                        <Link to="/register" className="font-bold text-indigo-400 hover:text-indigo-300 ml-1 transition-colors">
+                            Register now
+                        </Link>
+                    </p>
+                </div>
             </div>
         </div>
     );
 };
 
 /**
+ * 4. ForgotPasswordPage Component
+ * Handles the mock flow for resetting a password via email.
+ */
+const ForgotPasswordPage = () => {
+    const { resetPassword } = useAuthContext();
+    const navigate = useNavigate();
+
+    const [email, setEmail] = useState('');
+    const [error, setError] = useState('');
+    const [message, setMessage] = useState('');
+    const [loading, setLoading] = useState(false);
+
+    const handleReset = async (e) => {
+        e.preventDefault();
+        setError('');
+        setMessage('');
+
+        if (!email.trim()) {
+            setError('Please enter your email address.');
+            return;
+        }
+
+        setLoading(true);
+        try {
+            await resetPassword(email.trim());
+            setMessage('If an account exists for that email, a password reset link has been sent.');
+            setEmail('');
+        } catch (err) {
+            setError('Failed to process request. Please try again.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="min-h-[70vh] flex flex-col items-center justify-center p-4">
+            <div className="w-full max-w-sm p-8 bg-gray-800 rounded-xl shadow-2xl border border-indigo-500/30">
+                <h1 className="text-3xl font-extrabold text-white text-center mb-6">Forgot Password</h1>
+                <p className="text-center text-gray-400 mb-8">Enter your email and we'll send you a link to reset your password.</p>
+
+                {message && (
+                    <div className="text-green-500 text-center font-medium bg-green-900/30 p-3 rounded-lg mb-4 flex items-center justify-center">
+                        <Key className="w-5 h-5 mr-2" /> {message}
+                    </div>
+                )}
+                {error && (
+                    <p className="text-red-500 text-center font-medium mb-4">{error}</p>
+                )}
+
+                <form onSubmit={handleReset} className="space-y-6">
+                    <div>
+                        <label htmlFor="email" className="block text-sm font-medium text-gray-300">
+                            Email Address
+                        </label>
+                        <input
+                            type="email"
+                            id="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            required
+                            className="mt-1 w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                            placeholder="you@example.com"
+                        />
+                    </div>
+
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        className={`w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-md text-sm font-bold text-white transition-colors ${
+                            loading ? 'bg-gray-600' : 'bg-indigo-600 hover:bg-indigo-700'
+                        }`}
+                    >
+                        {loading ? (
+                            <Loader className="w-5 h-5 animate-spin mr-2" />
+                        ) : (
+                            <Mail className="w-5 h-5 mr-2" />
+                        )}
+                        Send Reset Link
+                    </button>
+                </form>
+
+                <div className="mt-6 text-center text-sm">
+                    <p className="text-gray-400">
+                        Remember your password? 
+                        <Link to="/login" className="font-bold text-indigo-400 hover:text-indigo-300 ml-1 transition-colors">
+                            Back to Sign In
+                        </Link>
+                    </p>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+/**
+ * 5. RegisterPage Component
+ * Handles user registration (RE-ADDED).
+ */
+const RegisterPage = () => {
+    const { register, isLoggedIn } = useAuthContext();
+    const navigate = useNavigate();
+
+    const [formData, setFormData] = useState({
+        username: '',
+        email: '',
+        password: '',
+        confirmPassword: ''
+    });
+    const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [success, setSuccess] = useState(false);
+
+    useEffect(() => {
+        if (isLoggedIn) {
+            navigate('/');
+        }
+    }, [isLoggedIn, navigate]);
+
+    const handleChange = (e) => {
+        setFormData({ ...formData, [e.target.id]: e.target.value });
+    };
+
+    const handleRegister = async (e) => {
+        e.preventDefault();
+        setError('');
+        setSuccess(false);
+
+        if (!formData.username || !formData.email || !formData.password || !formData.confirmPassword) {
+            setError('All fields are required.');
+            return;
+        }
+
+        if (formData.password !== formData.confirmPassword) {
+            setError('Passwords do not match.');
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const result = await register(formData.username.trim(), formData.email.trim(), formData.password);
+            if (result) {
+                setSuccess(true);
+                // Optionally redirect to login after success
+                setTimeout(() => navigate('/login'), 2000); 
+            } else {
+                 setError('Registration failed. Please try a different username/email.');
+            }
+        } catch (err) {
+            setError('An unexpected error occurred during registration.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="min-h-[70vh] flex flex-col items-center justify-center p-4">
+            <div className="w-full max-w-md p-8 bg-gray-800 rounded-xl shadow-2xl border border-indigo-500/30">
+                <h1 className="text-3xl font-extrabold text-white text-center mb-6">Create Your Account</h1>
+                <p className="text-center text-gray-400 mb-8">Join the platform and start contributing to debates.</p>
+
+                {error && (
+                    <p className="text-red-500 text-center font-medium mb-4">{error}</p>
+                )}
+                {success && (
+                    <div className="text-green-500 text-center font-medium bg-green-900/30 p-3 rounded-lg mb-4 flex items-center justify-center">
+                        <UserPlus className="w-5 h-5 mr-2" /> Registration successful! Redirecting to login...
+                    </div>
+                )}
+
+                <form onSubmit={handleRegister} className="space-y-4">
+                    <div>
+                        <label htmlFor="username" className="block text-sm font-medium text-gray-300">
+                            Username
+                        </label>
+                        <input
+                            type="text"
+                            id="username"
+                            value={formData.username}
+                            onChange={handleChange}
+                            required
+                            className="mt-1 w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                            placeholder="Your unique handle"
+                        />
+                    </div>
+                    <div>
+                        <label htmlFor="email" className="block text-sm font-medium text-gray-300">
+                            Email Address
+                        </label>
+                        <input
+                            type="email"
+                            id="email"
+                            value={formData.email}
+                            onChange={handleChange}
+                            required
+                            className="mt-1 w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                            placeholder="you@example.com"
+                        />
+                    </div>
+                    <div>
+                        <label htmlFor="password" className="block text-sm font-medium text-gray-300">
+                            Password
+                        </label>
+                        <input
+                            type="password"
+                            id="password"
+                            value={formData.password}
+                            onChange={handleChange}
+                            required
+                            className="mt-1 w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                            placeholder="••••••••"
+                        />
+                    </div>
+                    <div>
+                        <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-300">
+                            Confirm Password
+                        </label>
+                        <input
+                            type="password"
+                            id="confirmPassword"
+                            value={formData.confirmPassword}
+                            onChange={handleChange}
+                            required
+                            className="mt-1 w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                            placeholder="••••••••"
+                        />
+                    </div>
+
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        className={`w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-md text-sm font-bold text-white transition-colors ${
+                            loading ? 'bg-gray-600' : 'bg-green-600 hover:bg-green-700'
+                        }`}
+                    >
+                        {loading ? (
+                            <Loader className="w-5 h-5 animate-spin mr-2" />
+                        ) : (
+                            <UserPlus className="w-5 h-5 mr-2" />
+                        )}
+                        Register
+                    </button>
+                </form>
+
+                <div className="mt-6 text-center text-sm">
+                    <p className="text-gray-400">
+                        Already have an account? 
+                        <Link to="/login" className="font-bold text-indigo-400 hover:text-indigo-300 ml-1 transition-colors">
+                            Sign In
+                        </Link>
+                    </p>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+
+/**
  * 6. HomePage Component
- * Displays active and completed debates.
  */
 const HomePage = ({ debates }) => {
-    // Note: useAuthContext is imported via the main AppContent scope
     const activeDebates = debates.filter(d => d.status === 'Active' || d.status === 'Pending');
     const completedDebates = debates.filter(d => d.status === 'Completed');
 
@@ -517,7 +814,6 @@ const HomePage = ({ debates }) => {
 
 /**
  * 7. CreateDebatePage Component
- * Displays the form to create a new debate. Requires authentication.
  */
 const CreateDebatePage = ({ addDebate }) => {
     const { user } = useAuthContext();
@@ -597,10 +893,7 @@ const AppContent = () => {
         switch (path) {
             case '/':
             case '/home':
-                currentPage = <HomePage debates={debates} />;
-                break;
             case '/debates':
-                // Currently redirects to home
                 currentPage = <HomePage debates={debates} />;
                 break;
             case '/create':
@@ -612,9 +905,24 @@ const AppContent = () => {
             case '/login':
                 currentPage = <LoginPage />;
                 break;
-            // Add other pages here (e.g., DebateDetailPage)
+            case '/register': // RE-ADDED Register Route
+                currentPage = <RegisterPage />;
+                break;
+            case '/forgot-password': 
+                currentPage = <ForgotPasswordPage />;
+                break;
             default:
-                currentPage = <TempPage title="404 - Page Not Found" />;
+                // Check for dynamic debate ID route (e.g., /debate/1)
+                if (path.startsWith('/debate/')) {
+                    const debateId = parseInt(path.split('/')[2]);
+                    const debate = debates.find(d => d.id === debateId);
+                    // For now, redirect dynamic pages to a TempPage
+                    currentPage = debate 
+                        ? <TempPage title={`Debate ID: ${debateId}`} />
+                        : <TempPage title="Debate Not Found" />;
+                } else {
+                    currentPage = <TempPage title="404 - Page Not Found" />;
+                }
                 break;
         }
         setContent(currentPage);

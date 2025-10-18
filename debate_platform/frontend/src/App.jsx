@@ -937,6 +937,7 @@ const getInitialDebates = () => {
 
 const AppContent = () => {
     const location = useLocation();
+    const { user } = useAuthContext(); // <-- IMPORTANT: Get the user from context
     // 1. Load from localStorage or use initialDebates if nothing is saved
     const [debates, setDebates] = useState(getInitialDebates);
     const [content, setContent] = useState(null);
@@ -972,15 +973,30 @@ const AppContent = () => {
             case '/home':
                 currentPage = <HomePage debates={debates} />;
                 break;
-            case '/debates': // ROUTE UPDATED
+            case '/debates': 
                 currentPage = <AllDebatesPage debates={debates} />;
                 break;
             case '/create':
                 currentPage = <CreateDebatePage addDebate={addDebate} />;
                 break;
+            // ... (inside the switch statement in AppContent)
             case '/admin':
-                currentPage = <TempPage title="Admin Dashboard" />;
-                break;
+            // ... inside the switch statement that handles routing
+
+case '/admin':
+    // FIX: Check for the 'is_admin' property (from Django backend) OR the 'admin' role string (from context standardization)
+    const isAdmin = user && (user.is_admin === true || user.role === 'admin');
+    
+    if (isAdmin) {
+        currentPage = <AdminDashboard />;
+    } else {
+        // If the access is still denied, this page is shown
+        currentPage = <TempPage title="Access Denied - Admin Only" />;
+    }
+    break;
+
+// ...
+// ...
             case '/login':
                 currentPage = <LoginPage />;
                 break;
@@ -1005,7 +1021,7 @@ const AppContent = () => {
                 break;
         }
         setContent(currentPage);
-    }, [location.pathname, debates]);
+    }, [location.pathname, debates, user]); // Include 'user' in dependency array
 
     return (
         <div className="min-h-screen flex flex-col bg-gray-900 text-white font-sans">
@@ -1017,6 +1033,7 @@ const AppContent = () => {
         </div>
     );
 };
+
 
 // The default export wraps AppContent in the Router and AuthProvider
 const App = () => (

@@ -3,6 +3,13 @@ from rest_framework.permissions import IsAdminUser
 from .models import Debate
 from .serializers import DebateSerializer
 
+# ADDED: Import Transaction model from payments app
+from payments.models import UserCredit, UserSubscription, Transaction 
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from django.db import transaction
+
 # Custom permission to allow Admins full control, but only allow non-admins to list/create/join
 class IsAdminOrReadOnly(permissions.BasePermission):
     def has_permission(self, request, view):
@@ -30,15 +37,6 @@ class DebateDetailView(generics.RetrieveUpdateDestroyAPIView):
     # Only Admins can edit or delete a debate. Other users can view.
     permission_classes = [IsAdminOrReadOnly]
     lookup_field = 'id'
-
-# You would add a view here for participants to join a debate later.
-
-# debates/views.py (Add this to the existing file)
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from django.db import transaction
-from payments.models import UserCredit, UserSubscription # Import payment models
 
 class DebateJoinView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -88,7 +86,7 @@ class DebateJoinView(APIView):
                     
                     # Admin Revenue (Commission is calculated later, this is just the gross fee)
                     Transaction.objects.create(
-                        user=debate.creator,
+                        user=debate.creator, # The creator might not be the actual recipient, this logic might need refinement later.
                         transaction_type='DEB',
                         amount=fee # Positive amount means income for the system
                     )

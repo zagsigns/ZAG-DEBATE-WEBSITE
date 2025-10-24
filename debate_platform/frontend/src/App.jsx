@@ -1,7 +1,7 @@
 import { useState, useEffect, createContext, useContext } from 'react';
 import { BrowserRouter as Router, useLocation, useNavigate, Link } from 'react-router-dom';
-// Added ThumbsUp and Share2 to imports
-import { LogOut, User, Home, Zap, PlusCircle, Settings, UserPlus, Send, Loader, Edit, Trash2, Mail, Lock, Key, Filter, Activity, Clock, CheckCircle, Gift, CreditCard, DollarSign, Users, Database, ClipboardList, TrendingUp, Cpu, MessageSquare, ThumbsUp, Share2 } from 'lucide-react';
+// Added BarChart and Clock for new stats
+import { LogOut, User, Home, Zap, PlusCircle, Settings, UserPlus, Send, Loader, Edit, Trash2, Mail, Lock, Key, Filter, Activity, Clock, CheckCircle, Gift, CreditCard, DollarSign, Users, Database, ClipboardList, TrendingUp, Cpu, MessageSquare, ThumbsUp, Share2, CornerRightUp, BarChart } from 'lucide-react';
 
 // --- Global Constants & Mock Data Setup ---
 const COMMISSION_SPLIT = { admin: 0.25, creator: 0.75 };
@@ -15,6 +15,19 @@ const DEFAULT_DEBATES = [
     { id: 4, title: "Mandatory Four-Day Work Week", hostId: 'user2', participants: 10, topic: 'Society', status: 'Upcoming', createdAt: '2024-10-20', likes: 15, shares: 3 },
     { id: 5, title: "Should Pluto be a Planet?", hostId: 'user1', participants: 50, topic: 'Science', status: 'Completed', createdAt: '2024-09-01', likes: 110, shares: 20 },
 ];
+
+// Mock data for new analytics features (inspired by the image)
+const MOCK_ANALYTICS = {
+    totalUsers: 4892,
+    newUsersLastMonth: 356,
+    activeUsersToday: 1245,
+    growthRate: 7.8, // %
+    userRolesBreakdown: {
+        admin: 1,
+        customer: 4800,
+        trial: 91,
+    }
+};
 
 // --- CONTEXT & HOOKS (Simulating Firebase Authentication and Firestore Data) ---
 const AuthContext = createContext(null);
@@ -72,6 +85,21 @@ const useData = (userId) => {
         };
     });
 
+    // System settings state
+    const [systemSettings, setSystemSettings] = useState(() => {
+        const storedSettings = localStorage.getItem('systemSettings');
+        return storedSettings ? JSON.parse(storedSettings) : {
+            commissionThreshold: COMMISSION_THRESHOLD,
+            trialWeeks: INITIAL_TRIAL_WEEKS,
+        };
+    });
+    
+    // Analytics state (new)
+    const [analytics, setAnalytics] = useState(() => {
+        const storedAnalytics = localStorage.getItem('analytics');
+        return storedAnalytics ? JSON.parse(storedAnalytics) : MOCK_ANALYTICS;
+    });
+    
     useEffect(() => {
         localStorage.setItem('debates', JSON.stringify(debates));
     }, [debates]);
@@ -79,6 +107,15 @@ const useData = (userId) => {
     useEffect(() => {
         localStorage.setItem('userData', JSON.stringify(userData));
     }, [userData]);
+    
+    useEffect(() => {
+        localStorage.setItem('systemSettings', JSON.stringify(systemSettings));
+    }, [systemSettings]);
+    
+    useEffect(() => {
+        localStorage.setItem('analytics', JSON.stringify(analytics));
+    }, [analytics]);
+
 
     const userCredits = userId && userData[userId] ? userData[userId].credits : 0;
     const userMembership = userId && userData[userId] ? userData[userId].membership : 'free';
@@ -97,7 +134,7 @@ const useData = (userId) => {
         setDebates(debates.filter(d => d.id !== id));
     };
 
-    // New: Social Features
+    // Social Features
     const likeDebate = (id) => {
         setDebates(prev => prev.map(d => 
             d.id === id ? { ...d, likes: d.likes + 1 } : d
@@ -109,11 +146,52 @@ const useData = (userId) => {
             d.id === id ? { ...d, shares: d.shares + 1 } : d
         ));
         // Mock: Copy link to clipboard
-        // Note: navigator.clipboard.writeText might not work in all iframe environments, using alert for feedback
-        // document.execCommand('copy') is sometimes preferred in iframes, but not supported everywhere.
-        // For this demo, we mock the action.
         console.log(`Mock shared debate link: ${window.location.origin}/debate/${id}`);
-        alert(`Link to debate ID ${id} copied (mock action)!`);
+        // Using console.log instead of alert for non-critical mock features
+    };
+
+    // Admin User Management Functions
+    const getAllUsers = () => {
+        return Object.keys(userData).map(id => ({
+            id: id,
+            role: id === 'admin' ? 'admin' : (id.startsWith('user') ? 'customer' : 'unknown'),
+            membership: userData[id]?.membership || 'free',
+            credits: userData[id]?.credits || 0
+        }));
+    };
+
+    const updateUserRole = (id, newRole) => {
+        if (id === 'admin' && newRole !== 'admin') {
+            // Use a toast/modal later, for now, use a safer confirmation
+            console.error("Admin cannot demote self in this mock environment.");
+            return;
+        }
+        // In a real app, this would update the user's role in the Auth system.
+        alert(`MOCK: Changing role for user ${id} to ${newRole}. (Data update simulated)`);
+        // We'll also update the mock analytics for role breakdown simulation
+        setAnalytics(prev => {
+            const newBreakdown = { ...prev.userRolesBreakdown };
+            // Simple mock: assumes user was 'customer' before change
+            if (newRole === 'admin') {
+                newBreakdown.customer = Math.max(0, newBreakdown.customer - 1);
+                newBreakdown.admin = (newBreakdown.admin || 0) + 1;
+            }
+            return { ...prev, userRolesBreakdown: newBreakdown };
+        });
+    };
+
+    // Admin System Settings Functions
+    const updateSystemSettings = (updates) => {
+        setSystemSettings(prev => ({
+            ...prev,
+            ...updates
+        }));
+    };
+    
+    // Admin Analytics Function
+    const getAnalytics = () => {
+        // Return a deep copy to ensure immutability
+        return JSON.parse(JSON.stringify(analytics));
     };
 
     // Credit & Membership Management
@@ -133,8 +211,12 @@ const useData = (userId) => {
 
     return { 
         debates, createDebate, updateDebate, deleteDebate, 
-        likeDebate, shareDebate, // <-- Added new social functions
-        userCredits, userMembership, buyCredits, subscribe
+        likeDebate, shareDebate, 
+        userCredits, userMembership, buyCredits, subscribe,
+        // Admin Control
+        systemSettings, updateSystemSettings,
+        getAllUsers, updateUserRole,
+        getAnalytics, // New
     };
 };
 
@@ -197,7 +279,7 @@ const Button = ({ children, onClick, variant = 'primary', className = '', type='
     );
 };
 
-const Input = ({ label, type = 'text', value, onChange, placeholder, required = false, disabled = false }) => (
+const Input = ({ label, type = 'text', value, onChange, placeholder, required = false, disabled = false, className = '' }) => (
     <div className="mb-4">
         <label className="block text-sm font-medium text-gray-400 mb-1">{label}</label>
         <input
@@ -207,7 +289,7 @@ const Input = ({ label, type = 'text', value, onChange, placeholder, required = 
             placeholder={placeholder}
             required={required}
             disabled={disabled}
-            className={`w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500 ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+            className={`w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500 ${disabled ? 'opacity-50 cursor-not-allowed' : ''} ${className}`}
         />
     </div>
 );
@@ -239,6 +321,11 @@ const Header = () => {
                     
                     {user ? (
                         <>
+                            {user.role === 'admin' && (
+                                <Link to="/admin" className="text-red-400 hover:text-red-300 transition duration-150 flex items-center font-semibold">
+                                    <Cpu className="w-5 h-5 mr-1" /> Admin
+                                </Link>
+                            )}
                             <Link to="/profile" className="text-gray-300 hover:text-white transition duration-150 flex items-center">
                                 <User className="w-5 h-5 mr-1" /> {user.username}
                             </Link>
@@ -270,7 +357,7 @@ const Footer = () => (
     </footer>
 );
 
-// --- New Debate Feed Card Component ---
+// --- Debate Feed Card Component ---
 
 const DebateFeedCard = ({ debate }) => {
     const navigate = useNavigate();
@@ -416,7 +503,7 @@ const LoginPage = () => {
     return (
         <Card title="Login to DebateSphere" icon={Key} className="max-w-md mx-auto">
             <form onSubmit={handleSubmit}>
-                <Input label="Username/Email" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="admin or customer_name" required />
+                <Input label="Username/Email" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="admin or customer_name (e.g., user1)" required />
                 <Input label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="secret" required />
                 <Button type="submit" className="w-full mt-4">Login</Button>
             </form>
@@ -473,7 +560,8 @@ const DebateList = ({ debates, userId, isCustomer = true }) => {
     const [newTopic, setNewTopic] = useState('');
 
     const handleDelete = (id) => {
-        if (window.confirm("Are you sure you want to delete this debate?")) {
+        // Replace with custom modal/toast later
+        if (window.confirm(`Are you sure you want to delete debate ID ${id}?`)) {
             deleteDebate(id);
         }
     };
@@ -490,12 +578,14 @@ const DebateList = ({ debates, userId, isCustomer = true }) => {
     const debatesToDisplay = debates.filter(d => isCustomer ? d.hostId === userId : true);
 
     return (
-        <Card title="Active Debates" icon={ClipboardList} className="col-span-1 lg:col-span-2">
+        <Card title={isCustomer ? "My Hosted Debates (CRUD Access)" : "All Platform Debates (Admin)"} icon={ClipboardList} className="col-span-1 lg:col-span-3">
             <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold text-white">{isCustomer ? "My Hosted Debates (CRUD Access)" : "All Platform Debates"}</h3>
-                <Button onClick={() => setIsCreating(true)} className="flex items-center">
-                    <PlusCircle className="w-4 h-4 mr-1" /> Create New Debate
-                </Button>
+                <h3 className="text-lg font-semibold text-white">{isCustomer ? "Your Debates" : "Full List"}</h3>
+                {isCustomer && (
+                    <Button onClick={() => setIsCreating(true)} className="flex items-center">
+                        <PlusCircle className="w-4 h-4 mr-1" /> Create New Debate
+                    </Button>
+                )}
             </div>
 
             {isCreating && (
@@ -543,10 +633,12 @@ const MembershipAndCredits = ({ userId, userCredits, userMembership, buyCredits,
 
     const handleSubscribe = (plan) => {
         subscribe(plan);
+        // Replace with custom modal/toast later
         alert(`Successfully subscribed to the ${plan} plan!`);
     };
     
     const handleBuyCredits = () => {
+        // Replace with custom modal/toast later
         const amount = parseInt(prompt("Enter amount of credits to buy (e.g., 50):"));
         if (amount && !isNaN(amount) && amount > 0) {
             buyCredits(amount);
@@ -613,70 +705,232 @@ const CustomerDashboard = () => {
                 subscribe={subscribe} 
             />
             
-            <DebateList debates={debates} userId={user?.id} isCustomer={true} />
+            <DebateList debates={debates} userId={user?.id} isCustomer={true} className="lg:col-span-2" />
             
         </div>
     );
 };
 
 
-// 3. Admin Dashboard
+// --- New: Admin Components for Full Control ---
+
+// New Component: Displays key user growth metrics
+const GrowthMetricsCard = () => {
+    const { getAnalytics } = useContext(DataContext);
+    const analytics = getAnalytics();
+
+    const StatItem = ({ title, value, icon: Icon, colorClass }) => (
+        <div className="flex items-center space-x-3 p-3 bg-gray-700/50 rounded-lg">
+            <Icon className={`w-6 h-6 ${colorClass}`} />
+            <div>
+                <p className="text-lg font-bold text-white leading-tight">{value}</p>
+                <p className="text-xs text-gray-400">{title}</p>
+            </div>
+        </div>
+    );
+
+    return (
+        <Card title="User Growth Metrics" icon={BarChart}>
+            <div className="grid grid-cols-2 gap-4">
+                <StatItem 
+                    title="Total Users" 
+                    value={analytics.totalUsers.toLocaleString()} 
+                    icon={Users} 
+                    colorClass="text-indigo-400" 
+                />
+                <StatItem 
+                    title="Active Today" 
+                    value={analytics.activeUsersToday.toLocaleString()} 
+                    icon={Activity} 
+                    colorClass="text-green-400" 
+                />
+                <StatItem 
+                    title="New Last Month" 
+                    value={analytics.newUsersLastMonth.toLocaleString()} 
+                    icon={UserPlus} 
+                    colorClass="text-yellow-400" 
+                />
+                <StatItem 
+                    title="Monthly Growth Rate" 
+                    value={`${analytics.growthRate.toFixed(1)}%`} 
+                    icon={TrendingUp} 
+                    colorClass="text-red-400" 
+                />
+            </div>
+            
+            <div className="mt-4 pt-4 border-t border-gray-700">
+                <h4 className="text-md font-semibold text-gray-300 mb-2">Role Breakdown</h4>
+                <div className="space-y-1 text-sm text-gray-400">
+                    <p>Admins: <span className="text-white font-semibold">{analytics.userRolesBreakdown.admin}</span></p>
+                    <p>Customers: <span className="text-white font-semibold">{analytics.userRolesBreakdown.customer}</span></p>
+                    <p>Trial Members: <span className="text-white font-semibold">{analytics.userRolesBreakdown.trial}</span></p>
+                </div>
+            </div>
+        </Card>
+    );
+};
+
+const UserManagementTable = () => {
+    const { getAllUsers, updateUserRole } = useContext(DataContext);
+    const users = getAllUsers();
+    
+    const handleRoleChange = (userId) => {
+        // Use a prompt for simplicity in this mock environment
+        const newRole = prompt(`Enter new role for ${userId} (e.g., 'admin', 'customer', 'moderator'):`);
+        if (newRole) {
+            updateUserRole(userId, newRole.toLowerCase());
+        }
+    };
+
+    return (
+        <Card title="User Management" icon={Users} className="lg:col-span-3">
+            <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-700">
+                    <thead className="bg-gray-700">
+                        <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">User ID</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Role</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Membership</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Credits</th>
+                            <th className="px-6 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody className="bg-gray-800 divide-y divide-gray-700">
+                        {users.map(user => (
+                            <tr key={user.id} className="hover:bg-gray-700 transition duration-150">
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">{user.id}</td>
+                                <td className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${user.role === 'admin' ? 'text-red-400' : 'text-indigo-400'}`}>
+                                    {user.role}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{user.membership}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-yellow-400">{user.credits}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                                    <Button 
+                                        onClick={() => handleRoleChange(user.id)}
+                                        variant="secondary"
+                                        className="text-xs py-1 px-2"
+                                        icon={CornerRightUp}
+                                        disabled={user.id === 'admin'} // Prevent admin from demoting self
+                                    >
+                                        Change Role
+                                    </Button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </Card>
+    );
+};
+
+const SystemSettingsControl = () => {
+    const { systemSettings, updateSystemSettings } = useContext(DataContext);
+    
+    const [threshold, setThreshold] = useState(systemSettings.commissionThreshold);
+    const [trial, setTrial] = useState(systemSettings.trialWeeks);
+
+    const handleSave = (e) => {
+        e.preventDefault();
+        const newThreshold = parseInt(threshold);
+        const newTrial = parseInt(trial);
+
+        if (isNaN(newThreshold) || newThreshold < 0 || isNaN(newTrial) || newTrial < 0) {
+            alert("Please enter valid positive numbers.");
+            return;
+        }
+
+        updateSystemSettings({
+            commissionThreshold: newThreshold,
+            trialWeeks: newTrial,
+        });
+        // Replace with custom modal/toast later
+        alert("System Settings Updated (Mock Save)!");
+    };
+
+    return (
+        <Card title="System Configuration" icon={Settings}>
+            <form onSubmit={handleSave}>
+                <Input 
+                    label="Commission Threshold (Participants)" 
+                    type="number" 
+                    value={threshold} 
+                    onChange={(e) => setThreshold(e.target.value)} 
+                    required 
+                    className="mb-2"
+                />
+                <p className="text-xs text-gray-500 mb-4">Min participants for commission eligibility.</p>
+
+                <Input 
+                    label="Initial Free Trial Period (Weeks)" 
+                    type="number" 
+                    value={trial} 
+                    onChange={(e) => setTrial(e.target.value)} 
+                    required 
+                    className="mb-4"
+                />
+                
+                <Button type="submit" variant="success" className="w-full">
+                    <Database className="w-4 h-4 mr-1" /> Commit Global Settings
+                </Button>
+            </form>
+        </Card>
+    );
+};
+
+
+// 3. Admin Dashboard (Refactored to include Analytics)
 
 const AdminDashboard = () => {
-    const { debates } = useContext(DataContext);
+    const { debates, systemSettings } = useContext(DataContext);
     
-    // Calculate commission statistics
-    const commissionEligibleDebates = debates.filter(d => d.participants >= COMMISSION_THRESHOLD);
+    // Calculate commission statistics using current system settings
+    const commissionThreshold = systemSettings.commissionThreshold || COMMISSION_THRESHOLD;
+    const commissionEligibleDebates = debates.filter(d => d.participants >= commissionThreshold);
     const totalPotentialRevenue = debates.reduce((sum, d) => sum + (d.participants * 2), 0); // Mock revenue: $2 per participant
     const totalCommissionableRevenue = commissionEligibleDebates.reduce((sum, d) => sum + (d.participants * 2), 0); 
     const adminCommission = totalCommissionableRevenue * COMMISSION_SPLIT.admin;
     const creatorCommission = totalCommissionableRevenue * COMMISSION_SPLIT.creator;
 
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-3">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+            <div className="lg:col-span-4">
                 <h1 className="text-3xl font-extrabold text-white mb-6 flex items-center">
                     <Cpu className="w-8 h-8 mr-3 text-red-500" /> Admin Control Panel
                 </h1>
             </div>
 
-            {/* Admin Overview Cards */}
-            <Card title="Revenue & Commission" icon={TrendingUp}>
-                <p className="text-2xl font-bold text-green-400">{formatCurrency(totalPotentialRevenue)}</p>
-                <p className="text-sm text-gray-400 mt-1">Total Platform Revenue (Mock)</p>
-                <div className="mt-4 border-t border-gray-700 pt-3">
-                    <p className="text-gray-300">Admin Cut (25%): <span className="font-bold text-red-400">{formatCurrency(adminCommission)}</span></p>
-                    <p className="text-gray-300">Creator Cut (75%): <span className="font-bold text-indigo-400">{formatCurrency(creatorCommission)}</span></p>
-                    <p className="text-xs mt-2 text-gray-500">Threshold: {COMMISSION_THRESHOLD} Participants.</p>
-                </div>
-            </Card>
+            {/* Row 1: Key Metrics (2/4 wide) and Settings (1/4 wide) */}
+            <div className="lg:col-span-2">
+                <GrowthMetricsCard />
+            </div>
 
-            <Card title="User & Membership Stats" icon={Users}>
-                <p className="text-2xl font-bold text-indigo-400">4 / 15</p>
-                <p className="text-sm text-gray-400 mt-1">Active / Total Users (Mock)</p>
-                <div className="mt-4 border-t border-gray-700 pt-3 text-sm">
-                    <p>Subscribed: 2</p>
-                    <p>On Trial: 1</p>
-                    <p>Credits Purchased (Mock): $500</p>
-                </div>
-            </Card>
+            {/* Revenue Card (1/4 wide) */}
+            <div className="lg:col-span-1">
+                <Card title="Revenue Summary" icon={TrendingUp} className="h-full">
+                    <p className="text-2xl font-bold text-green-400">{formatCurrency(totalPotentialRevenue)}</p>
+                    <p className="text-sm text-gray-400 mt-1">Total Mock Revenue</p>
+                    <div className="mt-4 border-t border-gray-700 pt-3">
+                        <p className="text-gray-300 text-sm">Admin Cut (25%): <span className="font-bold text-red-400">{formatCurrency(adminCommission)}</span></p>
+                        <p className="text-gray-300 text-sm">Creator Cut (75%): <span className="font-bold text-indigo-400">{formatCurrency(creatorCommission)}</span></p>
+                        <p className="text-xs mt-2 text-gray-500">Threshold: {commissionThreshold} Participants.</p>
+                    </div>
+                </Card>
+            </div>
             
-            <Card title="System Settings" icon={Settings}>
-                <div className="space-y-3">
-                    <p className="text-gray-300 flex justify-between">
-                        Commission Threshold: 
-                        <span className="font-bold text-yellow-400">{COMMISSION_THRESHOLD}</span>
-                    </p>
-                    <p className="text-gray-300 flex justify-between">
-                        Initial Trial Period: 
-                        <span className="font-bold text-yellow-400">{INITIAL_TRIAL_WEEKS} Weeks</span>
-                    </p>
-                    <Button variant="secondary" className="w-full mt-2">Update Global Settings</Button>
-                </div>
-            </Card>
+            {/* System Settings Card (1/4 wide) */}
+            <div className="lg:col-span-1">
+                <SystemSettingsControl />
+            </div>
 
-            {/* All Debates CRUD */}
-            <DebateList debates={debates} isCustomer={false} />
+            {/* Row 2: Full-width User and Debate Control */}
+            <div className="lg:col-span-4 space-y-8">
+                {/* User Management */}
+                <UserManagementTable />
+
+                {/* All Debates Control (Acts as Content Control) */}
+                <DebateList debates={debates} isCustomer={false} className="lg:col-span-4" />
+            </div>
             
         </div>
     );
@@ -695,6 +949,7 @@ const ProfileSettings = () => {
 
     const handleSubmit = (e) => {
         e.preventDefault();
+        // Replace with custom modal/toast later
         alert("Profile updated! (Mock save to DB)");
     };
 
@@ -785,8 +1040,8 @@ const DebateRoom = () => {
 };
 
 
-const TempPage = ({ title = "Page Title", children }) => (
-    <Card title={title} icon={CheckCircle}>
+const TempPage = ({ title = "Page Title", children, icon: Icon = CheckCircle }) => (
+    <Card title={title} icon={Icon} className="max-w-3xl mx-auto">
         <p className="text-gray-400 mb-4">
             This is a placeholder page for the "{title}" route. The logic is defined in the router, but the full UI is yet to be built.
         </p>
@@ -827,7 +1082,7 @@ const AppContent = () => {
 
         switch (path) {
             case '/':
-                // New: Default path is the General Home Page / Debate Feed
+                // Default path is the General Home Page / Debate Feed
                 currentPage = <GeneralHomePage />;
                 break;
             case '/login':
@@ -850,6 +1105,7 @@ const AppContent = () => {
                 if (user?.role !== 'admin') {
                     currentPage = <TempPage title="Access Denied" icon={Lock}><p className="text-red-400">You must be an Administrator to access this page.</p></TempPage>;
                 } else {
+                    // Render the enhanced Admin Dashboard
                     currentPage = <AdminDashboard />;
                 }
                 break;

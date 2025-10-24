@@ -2,93 +2,79 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-// Ensure this path is correct based on your file structure!
-import axiosInstance from '../../api/axios'; 
+import { PlusCircle, Loader, DollarSign, Users, MessageSquare } from 'lucide-react';
+import axiosInstance from '../../api/axios'; // Import the configured axios instance
 
 const CreateDebateForm = () => {
     const navigate = useNavigate();
     const [formData, setFormData] = useState({
         title: '',
         description: '',
-        max_participants: 100,
-        subscription_fee: 0,
-        // --- ADDED ADVANCED FIELDS ---
-        debate_type: 'chat', // 'chat', 'call', 'video'
-        show_contact_info: false,
-        // is_commission_eligible would be determined by the backend based on user status
+        subscription_fee: 0, // Default to 0 (free)
+        max_participants: 100, // Default value
     });
-    const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
+    const [success, setSuccess] = useState(null);
 
     const handleChange = (e) => {
-        const { name, value, type, checked } = e.target;
-        
-        // Handle number/text/checkbox inputs
-        let newValue;
-        if (type === 'number') {
-            newValue = parseFloat(value);
-        } else if (type === 'checkbox') {
-            newValue = checked;
-        } else {
-            newValue = value;
-        }
-
+        const { name, value } = e.target;
         setFormData(prev => ({
             ...prev,
-            [name]: newValue,
+            // Convert to number for numerical fields
+            [name]: (name === 'subscription_fee' || name === 'max_participants') 
+                        ? Number(value) 
+                        : value,
         }));
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setError('');
-        setLoading(true);
+        setError(null);
+        setSuccess(null);
 
+        // Basic validation
+        if (!formData.title || !formData.description) {
+            setError("Title and Description are required.");
+            return;
+        }
+
+        setLoading(true);
+        
         try {
-            // Your API endpoint for creating a debate
-            const response = await axiosInstance.post('debates/', formData);
+            // API call to the DebateListCreateView endpoint: POST /api/debates/
+            const response = await axiosInstance.post('/debates/', formData);
             
-            if (response.status === 201) {
-                alert('Debate created successfully!');
-                // Redirect to the new debate page using its ID
-                navigate(`/debates/${response.data.id}`); 
-            }
+            setSuccess('Debate created successfully!');
+            console.log('Debate Created:', response.data);
+            
+            // Redirect to the newly created debate page (or debate list)
+            navigate(`/debate/${response.data.id}`);
+
         } catch (err) {
-            console.error("API Error:", err.response || err);
-            const errorMessage = err.response?.data?.detail || 
-                                 err.response?.data?.[Object.keys(err.response.data)[0]]?.[0] || // Catch Django field errors
-                                 'Failed to create debate. Check server logs.';
-            setError(errorMessage);
+            console.error('Debate Creation Error:', err.response ? err.response.data : err.message);
+            setError(err.response?.data?.detail || 'Failed to create debate. Check your input.');
         } finally {
             setLoading(false);
         }
     };
-    
-    // NOTE: In a real app, commission eligibility should be calculated by the server 
-    // or fetched from the user's profile API. This is a frontend placeholder.
-    const isCommissionEligible = true; 
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-8 p-8 bg-gray-800 rounded-xl shadow-2xl border border-gray-700">
-            <h2 className="text-3xl font-extrabold text-indigo-400 border-b pb-4 border-gray-700">
-                Launch a New Debate
+        <div className="bg-gray-800 p-8 rounded-xl shadow-2xl border border-indigo-700">
+            <h2 className="text-3xl font-extrabold text-indigo-400 mb-6 flex items-center">
+                <PlusCircle className="w-7 h-7 mr-3" />
+                Create New Debate
             </h2>
+            <p className="text-gray-400 mb-8">
+                Set up your debate topic, rules, and entry requirements.
+            </p>
 
-            {/* Error Message */}
-            {error && (
-                <p className="text-red-400 bg-red-900/40 p-3 rounded-lg border border-red-700 font-medium">
-                    <span className="font-bold">Error:</span> {error}
-                </p>
-            )}
-
-            {/* --- SECTION 1: CORE DETAILS (Your original fields + WoW Styling) --- */}
-            <div className="space-y-6">
-                <h3 className="text-xl font-semibold text-white">1. Core Topic & Pricing</h3>
-
-                {/* Debate Title */}
+            <form onSubmit={handleSubmit} className="space-y-6">
+                
+                {/* Title */}
                 <div>
                     <label htmlFor="title" className="block text-sm font-medium text-gray-300 mb-1">
-                        Title
+                        Title <span className="text-red-500">*</span>
                     </label>
                     <input
                         type="text"
@@ -97,49 +83,36 @@ const CreateDebateForm = () => {
                         value={formData.title}
                         onChange={handleChange}
                         required
-                        className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500"
-                        placeholder="A captivating and clear debate topic"
-                        maxLength="255"
+                        className="w-full p-3 rounded-lg bg-gray-700 border border-gray-600 focus:ring-indigo-500 focus:border-indigo-500 text-white"
+                        placeholder="e.g., Is AI a net positive for humanity?"
+                        maxLength={255}
                     />
                 </div>
 
-                {/* Debate Description */}
+                {/* Description */}
                 <div>
                     <label htmlFor="description" className="block text-sm font-medium text-gray-300 mb-1">
-                        Description / Rules
+                        Description <span className="text-red-500">*</span>
                     </label>
                     <textarea
                         name="description"
                         id="description"
-                        rows="4"
                         value={formData.description}
                         onChange={handleChange}
                         required
-                        className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500"
-                        placeholder="Provide background and main points of contention."
-                    />
+                        rows="4"
+                        className="w-full p-3 rounded-lg bg-gray-700 border border-gray-600 focus:ring-indigo-500 focus:border-indigo-500 text-white"
+                        placeholder="A detailed explanation of the debate's scope and rules."
+                    ></textarea>
                 </div>
-                
-                {/* Max Participants & Subscription Fee (Grid) */}
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    
+                    {/* Subscription Fee */}
                     <div>
-                        <label htmlFor="max_participants" className="block text-sm font-medium text-gray-300 mb-1">
-                            Max Participants (100+ for commission)
-                        </label>
-                        <input
-                            type="number"
-                            name="max_participants"
-                            id="max_participants"
-                            value={formData.max_participants}
-                            onChange={handleChange}
-                            required
-                            min="2" max="500"
-                            className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500"
-                        />
-                    </div>
-                    <div>
-                        <label htmlFor="subscription_fee" className="block text-sm font-medium text-gray-300 mb-1">
-                            Debate Fee (Credits or $0 for Free)
+                        <label htmlFor="subscription_fee" className="block text-sm font-medium text-gray-300 mb-1 flex items-center">
+                            <DollarSign className="w-4 h-4 mr-1 text-green-400" />
+                            Entry Fee (Credits)
                         </label>
                         <input
                             type="number"
@@ -147,96 +120,69 @@ const CreateDebateForm = () => {
                             id="subscription_fee"
                             value={formData.subscription_fee}
                             onChange={handleChange}
-                            required
-                            min="0" step="0.01"
-                            className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500"
+                            min="0"
+                            step="1"
+                            className="w-full p-3 rounded-lg bg-gray-700 border border-gray-600 focus:ring-indigo-500 focus:border-indigo-500 text-white"
                         />
+                        <p className="mt-1 text-xs text-gray-400">Set 0 for a free debate.</p>
                     </div>
-                </div>
-            </div>
 
-            {/* --- SECTION 2: ADVANCED SETTINGS (Wow Look for custom features) --- */}
-            <div className="space-y-6 pt-4 border-t border-gray-700">
-                <h3 className="text-xl font-semibold text-white">2. Communication & Visibility</h3>
-
-                {/* Debate Type (Radio Buttons) */}
-                <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Communication Method
-                    </label>
-                    <div className="flex space-x-6">
-                        {['chat', 'call', 'video'].map(type => (
-                            <label key={type} className="inline-flex items-center cursor-pointer">
-                                <input
-                                    type="radio"
-                                    name="debate_type"
-                                    value={type}
-                                    checked={formData.debate_type === type}
-                                    onChange={handleChange}
-                                    className="form-radio h-4 w-4 text-indigo-500 focus:ring-indigo-500 bg-gray-700 border-gray-600"
-                                />
-                                <span className="ml-2 text-white capitalize font-medium">
-                                    {type}
-                                </span>
-                            </label>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Show/Hide Contact Info (Toggle) */}
-                <div className="flex items-center justify-between p-3 bg-gray-700 rounded-lg">
-                    <span className="text-sm font-medium text-white">
-                        Show Personal Contact Info to Participants
-                    </span>
-                    <label className="relative inline-flex items-center cursor-pointer">
+                    {/* Max Participants */}
+                    <div>
+                        <label htmlFor="max_participants" className="block text-sm font-medium text-gray-300 mb-1 flex items-center">
+                            <Users className="w-4 h-4 mr-1 text-yellow-400" />
+                            Max Participants
+                        </label>
                         <input
-                            type="checkbox"
-                            name="show_contact_info"
-                            checked={formData.show_contact_info}
+                            type="number"
+                            name="max_participants"
+                            id="max_participants"
+                            value={formData.max_participants}
                             onChange={handleChange}
-                            className="sr-only peer"
+                            min="2"
+                            step="1"
+                            className="w-full p-3 rounded-lg bg-gray-700 border border-gray-600 focus:ring-indigo-500 focus:border-indigo-500 text-white"
                         />
-                        {/* Tailwind Toggle Switch Styling (WOW factor) */}
-                        <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:border-gray-300 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-                        <span className="ml-3 text-sm font-medium text-gray-300">
-                            {formData.show_contact_info ? 'Visible' : 'Hidden'}
-                        </span>
-                    </label>
-                </div>
-                
-                {/* Commission Eligibility Info */}
-                <div className={`p-4 rounded-lg ${isCommissionEligible ? 'bg-green-800/30' : 'bg-red-800/30'} border ${isCommissionEligible ? 'border-green-700' : 'border-red-700'}`}>
-                    <p className="text-sm font-medium text-white">
-                        Earning Potential: 
-                        <span className="ml-2 font-bold text-lg text-green-400">
-                            25% Commission Eligible 
-                        </span>
-                    </p>
-                    <p className="text-xs text-gray-300 mt-1">
-                        *You will earn 25% commission if the debate exceeds 100 participants.
-                    </p>
+                    </div>
                 </div>
 
-            </div>
-
-            {/* --- SUBMIT BUTTON --- */}
-            <button
-                type="submit"
-                disabled={loading}
-                className={`w-full flex justify-center items-center py-3 px-4 border border-transparent text-lg font-bold rounded-lg shadow-lg transition duration-300 ${
-                    loading ? 'bg-indigo-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-500/50'
-                } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500`}
-            >
-                {loading ? (
-                    <>
-                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                        Creating Debate...
-                    </>
-                ) : (
-                    'Launch Debate Now'
+                {/* Status/Error Messages */}
+                {error && (
+                    <div className="p-3 bg-red-800 text-red-300 rounded-lg border border-red-500">
+                        Error: {error}
+                    </div>
                 )}
-            </button>
-        </form>
+
+                {success && (
+                    <div className="p-3 bg-green-800 text-green-300 rounded-lg border border-green-500">
+                        Success: {success}
+                    </div>
+                )}
+
+                {/* Submit Button */}
+                <button
+                    type="submit"
+                    disabled={loading}
+                    className={`w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-lg font-medium text-white transition duration-200 ${
+                        loading 
+                            ? 'bg-indigo-500 cursor-not-allowed' 
+                            : 'bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-500 focus:ring-opacity-50'
+                    }`}
+                >
+                    {loading ? (
+                        <>
+                            <Loader className="w-5 h-5 mr-2 animate-spin" />
+                            Creating Debate...
+                        </>
+                    ) : (
+                        <>
+                            <MessageSquare className="w-5 h-5 mr-2" />
+                            Launch Debate
+                        </>
+                    )}
+                </button>
+            </form>
+        </div>
     );
 };
 

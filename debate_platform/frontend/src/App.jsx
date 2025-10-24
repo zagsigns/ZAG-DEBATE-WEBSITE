@@ -1,11 +1,26 @@
 import { useState, useEffect, createContext, useContext } from 'react';
 import { BrowserRouter as Router, useLocation, useNavigate, Link } from 'react-router-dom';
-import { LogOut, User, Home, Zap, PlusCircle, Settings, UserPlus, Send, Loader, Edit, Trash2, Mail, Lock, Key, Filter, Activity, Clock, CheckCircle } from 'lucide-react';
+// Added ThumbsUp and Share2 to imports
+import { LogOut, User, Home, Zap, PlusCircle, Settings, UserPlus, Send, Loader, Edit, Trash2, Mail, Lock, Key, Filter, Activity, Clock, CheckCircle, Gift, CreditCard, DollarSign, Users, Database, ClipboardList, TrendingUp, Cpu, MessageSquare, ThumbsUp, Share2 } from 'lucide-react';
 
-// --- CONTEXT & HOOKS ---
+// --- Global Constants & Mock Data Setup ---
+const COMMISSION_SPLIT = { admin: 0.25, creator: 0.75 };
+const COMMISSION_THRESHOLD = 100; // Customizable by admin
+const INITIAL_TRIAL_WEEKS = 4;
+// Updated DEFAULT_DEBATES with likes and shares
+const DEFAULT_DEBATES = [
+    { id: 1, title: "The Future of AI in Education", hostId: 'user1', participants: 150, topic: 'Technology', status: 'Live', createdAt: '2024-10-01', likes: 45, shares: 12 },
+    { id: 2, title: "Universal Basic Income Feasibility", hostId: 'admin', participants: 55, topic: 'Economics', status: 'Upcoming', createdAt: '2024-10-15', likes: 22, shares: 5 },
+    { id: 3, title: "Climate Policy Efficacy", hostId: 'user3', participants: 300, topic: 'Environment', status: 'Live', createdAt: '2024-10-18', likes: 89, shares: 35 },
+    { id: 4, title: "Mandatory Four-Day Work Week", hostId: 'user2', participants: 10, topic: 'Society', status: 'Upcoming', createdAt: '2024-10-20', likes: 15, shares: 3 },
+    { id: 5, title: "Should Pluto be a Planet?", hostId: 'user1', participants: 50, topic: 'Science', status: 'Completed', createdAt: '2024-09-01', likes: 110, shares: 20 },
+];
+
+// --- CONTEXT & HOOKS (Simulating Firebase Authentication and Firestore Data) ---
 const AuthContext = createContext(null);
+const DataContext = createContext(null);
 
-// Mock authentication logic using localStorage for persistence
+// Custom hook for Auth simulation
 const useAuth = () => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -13,22 +28,18 @@ const useAuth = () => {
     useEffect(() => {
         const storedUser = localStorage.getItem('debate_user');
         if (storedUser) {
-            setUser({ 
-                username: storedUser, 
-                role: storedUser === 'admin' ? 'admin' : 'user'
-            });
+            const role = storedUser === 'admin' ? 'admin' : 'customer';
+            setUser({ username: storedUser, role, id: storedUser, email: `${storedUser}@debate.com` });
         }
         setLoading(false);
     }, []);
 
     const login = (username) => {
         setLoading(true);
-        // Using username as email surrogate for simplicity
+        // Basic role assignment based on username
+        const role = username === 'admin' ? 'admin' : 'customer';
         localStorage.setItem('debate_user', username);
-        setUser({ 
-            username, 
-            role: username === 'admin' ? 'admin' : 'user'
-        });
+        setUser({ username, role, id: username, email: `${username}@debate.com` });
         setLoading(false);
     };
 
@@ -39,31 +50,91 @@ const useAuth = () => {
         setLoading(false);
     };
 
-    // Mock function for password reset
-    const resetPassword = async (email) => {
-        // Simulate API call and success/failure
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        console.log(`Password reset email simulated sent to: ${email}`);
-        return true; 
-    }
-    
-    // Mock function for registration
-    const register = async (username, email, password) => {
-        // Simulate API call and success/failure
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        console.log(`User registered: ${username}, ${email}`);
-        // In a real app, we would log the user in here or redirect to login
-        return true;
-    }
+    return { user, login, logout, loading };
+};
 
-    return {
-        user,
-        isLoggedIn: !!user,
-        loading,
-        login,
-        logout,
-        resetPassword,
-        register,
+// Custom hook for Data simulation (Debates, Subscriptions, Credits)
+const useData = (userId) => {
+    // Debates state
+    const [debates, setDebates] = useState(() => {
+        const storedDebates = localStorage.getItem('debates');
+        return storedDebates ? JSON.parse(storedDebates) : DEFAULT_DEBATES;
+    });
+
+    // User data (membership and credits)
+    const [userData, setUserData] = useState(() => {
+        const storedUserData = localStorage.getItem('userData');
+        return storedUserData ? JSON.parse(storedUserData) : { 
+            admin: { credits: 9999, membership: 'admin' }, 
+            user1: { credits: 50, membership: 'trial', trialEndDate: new Date(Date.now() + INITIAL_TRIAL_WEEKS * 7 * 24 * 60 * 60 * 1000).toISOString() },
+            user2: { credits: 200, membership: 'monthly' },
+            user3: { credits: 100, membership: 'annual' }
+        };
+    });
+
+    useEffect(() => {
+        localStorage.setItem('debates', JSON.stringify(debates));
+    }, [debates]);
+
+    useEffect(() => {
+        localStorage.setItem('userData', JSON.stringify(userData));
+    }, [userData]);
+
+    const userCredits = userId && userData[userId] ? userData[userId].credits : 0;
+    const userMembership = userId && userData[userId] ? userData[userId].membership : 'free';
+
+    // Debate CRUD Operations
+    const createDebate = (newDebate) => {
+        const newId = debates.length + 1;
+        setDebates([...debates, { ...newDebate, id: newId, hostId: userId, participants: 0, status: 'Upcoming', createdAt: new Date().toISOString().slice(0, 10), likes: 0, shares: 0 }]);
+    };
+    
+    const updateDebate = (id, updates) => {
+        setDebates(debates.map(d => d.id === id ? { ...d, ...updates } : d));
+    };
+    
+    const deleteDebate = (id) => {
+        setDebates(debates.filter(d => d.id !== id));
+    };
+
+    // New: Social Features
+    const likeDebate = (id) => {
+        setDebates(prev => prev.map(d => 
+            d.id === id ? { ...d, likes: d.likes + 1 } : d
+        ));
+    };
+
+    const shareDebate = (id) => {
+        setDebates(prev => prev.map(d => 
+            d.id === id ? { ...d, shares: d.shares + 1 } : d
+        ));
+        // Mock: Copy link to clipboard
+        // Note: navigator.clipboard.writeText might not work in all iframe environments, using alert for feedback
+        // document.execCommand('copy') is sometimes preferred in iframes, but not supported everywhere.
+        // For this demo, we mock the action.
+        console.log(`Mock shared debate link: ${window.location.origin}/debate/${id}`);
+        alert(`Link to debate ID ${id} copied (mock action)!`);
+    };
+
+    // Credit & Membership Management
+    const buyCredits = (amount) => {
+        setUserData(prev => ({
+            ...prev,
+            [userId]: { ...prev[userId], credits: (prev[userId]?.credits || 0) + amount }
+        }));
+    };
+
+    const subscribe = (plan) => {
+        setUserData(prev => ({
+            ...prev,
+            [userId]: { ...prev[userId], membership: plan, trialEndDate: undefined }
+        }));
+    };
+
+    return { 
+        debates, createDebate, updateDebate, deleteDebate, 
+        likeDebate, shareDebate, // <-- Added new social functions
+        userCredits, userMembership, buyCredits, subscribe
     };
 };
 
@@ -72,956 +143,750 @@ const AuthProvider = ({ children }) => {
     return <AuthContext.Provider value={auth}>{children}</AuthContext.Provider>;
 };
 
-const useAuthContext = () => useContext(AuthContext);
+const DataProvider = ({ children }) => {
+    const { user, loading } = useContext(AuthContext);
+    const data = useData(user?.id);
+    return <DataContext.Provider value={{ ...data, loading: loading }}>{children}</DataContext.Provider>;
+};
+
+// --- UTILITY FUNCTIONS ---
+
+function getIconClass(pageTitle) { 
+    if (pageTitle.includes("Access Denied")) return "text-red-600";
+    if (pageTitle.includes("404")) return "text-yellow-600";
+    return "text-indigo-600";
+}
+
+function formatCurrency(amount) {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+}
 
 // --- COMPONENTS ---
 
-// 1. Common Components
-const NavLink = ({ to, children }) => (
-    <Link 
-        to={to} 
-        className="text-gray-300 hover:text-white transition-colors duration-200 px-3 py-2 rounded-lg font-medium"
-    >
+const Card = ({ children, title, icon: Icon, className = "" }) => (
+    <div className={`bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-700 ${className}`}>
+        {title && (
+            <div className="flex items-center mb-4 border-b border-gray-700 pb-2">
+                {Icon && <Icon className="w-6 h-6 mr-3 text-indigo-400" />}
+                <h2 className="text-xl font-semibold text-white">{title}</h2>
+            </div>
+        )}
         {children}
-    </Link>
+    </div>
+);
+
+const Button = ({ children, onClick, variant = 'primary', className = '', type='button', disabled = false, icon: Icon = null }) => {
+    const baseStyle = 'px-4 py-2 font-medium rounded-lg transition duration-200 shadow-md flex items-center justify-center';
+    const variants = {
+        primary: 'bg-indigo-600 hover:bg-indigo-700 text-white',
+        secondary: 'bg-gray-600 hover:bg-gray-700 text-white',
+        danger: 'bg-red-600 hover:bg-red-700 text-white',
+        success: 'bg-green-600 hover:bg-green-700 text-white',
+        ghost: 'bg-transparent text-indigo-400 hover:bg-indigo-900/50'
+    };
+    return (
+        <button 
+            type={type} 
+            onClick={onClick} 
+            disabled={disabled}
+            className={`${baseStyle} ${variants[variant]} ${className} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+        >
+            {Icon && <Icon className="w-4 h-4 mr-1" />}
+            {children}
+        </button>
+    );
+};
+
+const Input = ({ label, type = 'text', value, onChange, placeholder, required = false, disabled = false }) => (
+    <div className="mb-4">
+        <label className="block text-sm font-medium text-gray-400 mb-1">{label}</label>
+        <input
+            type={type}
+            value={value}
+            onChange={onChange}
+            placeholder={placeholder}
+            required={required}
+            disabled={disabled}
+            className={`w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500 ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+        />
+    </div>
 );
 
 const Header = () => {
-    const { user, logout } = useAuthContext();
+    const { user, logout } = useContext(AuthContext);
     const navigate = useNavigate();
-
+    
     const handleLogout = () => {
         logout();
         navigate('/login');
     };
 
     return (
-        <header className="sticky top-0 z-50 bg-gray-900 shadow-lg border-b border-indigo-500/20">
-            <div className="container mx-auto px-4 sm:px-6">
-                <div className="flex justify-between items-center h-16">
-                    {/* Logo and App Name */}
-                    <Link to="/" className="flex items-center space-x-2 text-xl font-extrabold text-white">
-                        <Zap className="w-6 h-6 text-indigo-400" />
-                        <span>ZAG Debate</span>
-                    </Link>
-
-                    {/* Navigation Links (Center) */}
-                    <nav className="hidden sm:flex space-x-4">
-                        <NavLink to="/home"><Home className="w-4 h-4 inline mr-1" /> Home</NavLink>
-                        <NavLink to="/debates"><Zap className="w-4 h-4 inline mr-1" /> Debates</NavLink>
-                        <NavLink to="/create"><PlusCircle className="w-4 h-4 inline mr-1" /> Create</NavLink>
-                        {/* Conditional Admin Link */}
-                        {user && user.role === 'admin' && (
-                            <NavLink to="/admin">Admin</NavLink>
-                        )}
-                    </nav>
-
-                    {/* Auth Actions (Right) */}
-                    <div className="flex items-center space-x-4">
-                        {user ? (
-                            <>
-                                <span className="text-sm font-medium text-gray-300 hidden sm:block">
-                                    Hi, <span className="text-indigo-400 font-bold">{user.username}</span>
-                                </span>
-                                <button
-                                    onClick={handleLogout}
-                                    className="flex items-center px-3 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
-                                >
-                                    <LogOut className="w-4 h-4 mr-1" /> Logout
-                                </button>
-                            </>
-                        ) : (
-                            // LOGGED OUT STATE: Includes Register and Sign In buttons
-                            <>
-                                <Link 
-                                    to="/register" 
-                                    className="flex items-center px-3 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors"
-                                >
+        <header className="bg-gray-800 shadow-xl border-b border-indigo-600/50">
+            <div className="container mx-auto px-4 sm:px-6 py-3 flex justify-between items-center">
+                {/* Logo always links to the General Home Page */}
+                <Link to="/" className="flex items-center text-2xl font-bold text-indigo-400 hover:text-indigo-300 transition duration-150">
+                    <Zap className="w-7 h-7 mr-2" />
+                    DebateSphere
+                </Link>
+                <nav className="flex items-center space-x-4">
+                    {/* Home link visible when logged in */}
+                    {user && (
+                        <Link to="/" className="text-gray-300 hover:text-white transition duration-150 flex items-center">
+                            <Home className="w-5 h-5 mr-1" /> Home
+                        </Link>
+                    )}
+                    
+                    {user ? (
+                        <>
+                            <Link to="/profile" className="text-gray-300 hover:text-white transition duration-150 flex items-center">
+                                <User className="w-5 h-5 mr-1" /> {user.username}
+                            </Link>
+                            <Button onClick={handleLogout} variant="secondary" className="flex items-center">
+                                <LogOut className="w-4 h-4 mr-1" /> Logout
+                            </Button>
+                        </>
+                    ) : (
+                        <>
+                            <Link to="/login" className="text-gray-300 hover:text-white transition duration-150">Login</Link>
+                            <Link to="/register">
+                                <Button variant="primary" className="flex items-center">
                                     <UserPlus className="w-4 h-4 mr-1" /> Register
-                                </Link>
-                                <Link 
-                                    to="/login" 
-                                    className="flex items-center px-3 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors"
-                                >
-                                    <User className="w-4 h-4 mr-1" /> Sign In
-                                </Link>
-                            </>
-                        )}
-                    </div>
-                </div>
+                                </Button>
+                            </Link>
+                        </>
+                    )}
+                </nav>
             </div>
         </header>
     );
 };
 
-const Footer = () => {
-    return (
-        <footer className="bg-gray-900 border-t border-indigo-500/20 mt-8">
-            <div className="container mx-auto px-4 sm:px-6 py-6 text-center">
-                <div className="flex justify-center items-center space-x-2 text-gray-400 mb-2">
-                    <Zap className="w-4 h-4 text-indigo-400" />
-                    <p className="text-sm">&copy; {new Date().getFullYear()} ZAG Debate Platform. All rights reserved.</p>
-                </div>
-                <div className="text-xs space-x-4">
-                    <a href="/about" className="text-gray-500 hover:text-indigo-400 transition-colors">About</a>
-                    <a href="/terms" className="text-gray-500 hover:text-indigo-400 transition-colors">Terms of Service</a>
-                    <a href="/privacy" className="text-gray-500 hover:text-indigo-400 transition-colors">Privacy Policy</a>
-                </div>
-            </div>
-        </footer>
-    );
-};
-
-const TempPage = ({ title }) => {
-    return (
-        <div className="text-center py-20 bg-gray-800 rounded-xl shadow-lg border border-indigo-500/20">
-            <h2 className="text-4xl font-extrabold text-white mb-4">{title}</h2>
-            <p className="text-lg text-gray-400">Content coming soon...</p>
+const Footer = () => (
+    <footer className="bg-gray-900 border-t border-gray-700 py-6 text-center text-gray-500 text-sm">
+        <div className="container mx-auto px-4 sm:px-6">
+            &copy; {new Date().getFullYear()} DebateSphere. All rights reserved. | <a href="#" className="hover:text-indigo-400">Privacy Policy</a>
         </div>
-    );
-};
+    </footer>
+);
 
-// 2. Debate Components 
-const DebateCard = ({ debate }) => {
-    const statusColor = debate.status === 'Active' ? 'bg-green-600' : 
-                        debate.status === 'Pending' ? 'bg-yellow-600' : 'bg-red-600';
+// --- New Debate Feed Card Component ---
+
+const DebateFeedCard = ({ debate }) => {
+    const navigate = useNavigate();
+    const { likeDebate, shareDebate, userMembership } = useContext(DataContext);
+    const { user } = useContext(AuthContext);
+
+    const getStatusStyle = (status) => {
+        switch (status) {
+            case 'Live': return 'bg-red-600 text-white';
+            case 'Upcoming': return 'bg-yellow-500 text-gray-900';
+            case 'Completed': return 'bg-green-600 text-white';
+            default: return 'bg-gray-500 text-white';
+        }
+    };
+
+    const handleViewJoin = () => {
+        if (!user) {
+            alert("You must log in or register to join a debate!");
+            navigate('/login');
+        } else {
+            navigate(`/debate/${debate.id}`);
+        }
+    };
+    
+    // Logic to disable view/join for free/trial members on premium debates (mock logic)
+    const isPremium = debate.participants > 100;
+    const isAccessDisabled = !user || (!['monthly', 'annual', 'admin'].includes(userMembership) && isPremium);
+
 
     return (
-        <div className="bg-gray-800 p-6 rounded-xl shadow-lg hover:shadow-xl transition-shadow border border-gray-700/50 hover:border-indigo-500/50">
-            <div className="flex justify-between items-start mb-3">
-                <h3 className="text-xl font-bold text-white leading-tight pr-4">{debate.title}</h3>
-                <span className={`text-xs font-semibold px-3 py-1 rounded-full text-white ${statusColor} whitespace-nowrap`}>
+        <Card className="shadow-2xl hover:shadow-indigo-500/30 transition-shadow duration-300">
+            {/* Header */}
+            <div className="flex justify-between items-start mb-4">
+                <div className="flex items-center">
+                    <User className="w-8 h-8 p-1 rounded-full bg-indigo-600 text-white mr-3" />
+                    <div>
+                        <h3 className="text-lg font-bold text-white leading-tight">{debate.title}</h3>
+                        <p className="text-sm text-gray-400">Hosted by: <span className="font-semibold text-indigo-300">{debate.hostId}</span></p>
+                    </div>
+                </div>
+                <span className={`px-3 py-1 text-xs font-semibold rounded-full ${getStatusStyle(debate.status)}`}>
                     {debate.status}
                 </span>
             </div>
-            <p className="text-sm text-gray-400 mb-4">Created by: {debate.createdBy}</p>
+
+            {/* Body */}
+            <p className="text-gray-300 mb-4">{debate.topic} | Started: {debate.createdAt}</p>
             
-            <div className="flex justify-between items-center text-sm font-medium">
-                <div className="flex items-center text-green-400">
-                    <PlusCircle className="w-4 h-4 mr-1" />
-                    Pros: {debate.pros}
-                </div>
-                <div className="flex items-center text-red-400">
-                    <Trash2 className="w-4 h-4 mr-1" />
-                    Cons: {debate.cons}
-                </div>
-                <Link to={`/debate/${debate.id}`} className="text-indigo-400 hover:text-indigo-300 font-semibold transition-colors flex items-center">
-                    Join / View
-                </Link>
+            <div className="flex justify-between items-center text-sm mb-4 border-y border-gray-700 py-3">
+                <p className="text-indigo-400 flex items-center">
+                    <Users className="w-4 h-4 mr-1" /> 
+                    {debate.participants} Participants
+                </p>
+                <p className="text-yellow-400 flex items-center">
+                    <TrendingUp className="w-4 h-4 mr-1" /> 
+                    {isPremium ? 'Premium Access' : 'Open Access'}
+                </p>
             </div>
-        </div>
+            
+            {/* Actions */}
+            <div className="flex justify-between items-center space-x-2">
+                <Button 
+                    onClick={handleViewJoin} 
+                    variant={isAccessDisabled ? 'secondary' : 'primary'}
+                    className="flex-grow"
+                    disabled={isAccessDisabled}
+                >
+                    {isAccessDisabled ? 'Upgrade to Join' : 'View / Join Debate'}
+                </Button>
+
+                <Button 
+                    onClick={() => likeDebate(debate.id)} 
+                    variant="ghost" 
+                    className="p-2 border border-gray-700 hover:bg-gray-700"
+                    icon={ThumbsUp}
+                >
+                    {debate.likes}
+                </Button>
+                
+                <Button 
+                    onClick={() => shareDebate(debate.id)} 
+                    variant="ghost" 
+                    className="p-2 border border-gray-700 hover:bg-gray-700"
+                    icon={Share2}
+                >
+                    {debate.shares}
+                </Button>
+            </div>
+            {isAccessDisabled && <p className="text-xs text-red-400 mt-2">Requires login or premium membership.</p>}
+        </Card>
     );
 };
 
-const DebateList = ({ debates }) => {
-    if (debates.length === 0) {
-        return (
-            <div className="text-center py-10 bg-gray-800/50 rounded-lg p-6">
-                <p className="text-lg text-gray-400">No debates available in this category.</p>
-                <Link to="/create" className="text-indigo-400 hover:text-indigo-300 mt-2 inline-block font-medium">
-                    Be the first to create one!
-                </Link>
-            </div>
-        );
-    }
-    return (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {debates.map(debate => (
-                <DebateCard key={debate.id} debate={debate} />
-            ))}
-        </div>
-    );
-};
-
-const CreateDebateForm = ({ onSubmit }) => {
-    const [formData, setFormData] = useState({
-        title: '',
-        max_participant: 100,
-        subscription_fee: 0,
-        debate_type: 'chat',
-        show_contact_info: false,
-    });
-    const [error, setError] = useState('');
-    const [loading, setLoading] = useState(false);
-
-    const handleChange = (e) => {
-        const { name, value, type, checked } = e.target;
-
-        let newValue;
-        if (type === 'number') {
-            newValue = parseInt(value) || 0;
-        } else if (type === 'checkbox') {
-            newValue = checked;
-        } else {
-            newValue = value;
-        }
-
-        setFormData(prevData => ({
-            ...prevData,
-            [name]: newValue
-        }));
-    };
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setError('');
-        if (!formData.title.trim()) {
-            setError('The debate title is required.');
-            return;
-        }
-
-        setLoading(true);
-        // Simulate API call delay
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        try {
-            onSubmit(formData);
-        } catch (err) {
-            setError('Failed to create debate. Please try again.');
-        } finally {
-            setLoading(false);
-        }
-    };
+// Refactored General Home Page Component (Now a Debate Feed)
+const GeneralHomePage = () => {
+    const { debates } = useContext(DataContext);
 
     return (
-        <form onSubmit={handleSubmit} className="p-8 bg-gray-800 rounded-xl shadow-2xl border border-indigo-500/30 space-y-6">
+        <div className="py-8">
+            <h1 className="text-4xl sm:text-5xl font-extrabold text-white mb-8 text-center border-b border-indigo-600/50 pb-4">
+                Global Debate Feed
+            </h1>
             
-            {error && (
-                <p className="text-red-500 text-center font-medium bg-red-900/30 p-3 rounded-lg">{error}</p>
-            )}
-
-            {/* Basic Info: Title */}
-            <div>
-                <label htmlFor="title" className="block text-sm font-bold text-gray-300 mb-2">
-                    Debate Topic / Title
-                </label>
-                <input
-                    type="text"
-                    id="title"
-                    name="title"
-                    value={formData.title}
-                    onChange={handleChange}
-                    required
-                    className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-                    placeholder="e.g., Is pineapple a valid pizza topping?"
-                />
-            </div>
-
-            <h2 className="text-xl font-bold text-indigo-400 border-b border-indigo-500/50 pb-2 flex items-center">
-                <Settings className="w-5 h-5 mr-2" /> Advanced Settings
-            </h2>
-
-            {/* Participants & Fee */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                    <label htmlFor="max_participant" className="block text-sm font-bold text-gray-300 mb-2">
-                        Max Participants (per side)
-                    </label>
-                    <input
-                        type="number"
-                        id="max_participant"
-                        name="max_participant"
-                        value={formData.max_participant}
-                        onChange={handleChange}
-                        min="1"
-                        className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-indigo-500 focus:border-indigo-500"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Set the maximum number of people allowed on the Pros and Cons side.</p>
-                </div>
-                <div>
-                    <label htmlFor="subscription_fee" className="block text-sm font-bold text-gray-300 mb-2">
-                        Subscription Fee (ZAG Credits)
-                    </label>
-                    <input
-                        type="number"
-                        id="subscription_fee"
-                        name="subscription_fee"
-                        value={formData.subscription_fee}
-                        onChange={handleChange}
-                        min="0"
-                        className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-indigo-500 focus:border-indigo-500"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Cost for a user to join this debate (0 for free).</p>
-                </div>
-            </div>
-
-            {/* Debate Type */}
-            <div>
-                <label className="block text-sm font-bold text-gray-300 mb-2 flex items-center">
-                    <Zap className="w-4 h-4 mr-2" /> Debate Format
-                </label>
-                <div className="flex flex-wrap gap-4">
-                    {['chat', 'call', 'video'].map(type => (
-                        <label key={type} className={`cursor-pointer px-4 py-2 rounded-full border-2 transition-all text-sm font-semibold ${
-                            formData.debate_type === type 
-                                ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg'
-                                : 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600'
-                        }`}>
-                            <input
-                                type="radio"
-                                name="debate_type"
-                                value={type}
-                                checked={formData.debate_type === type}
-                                onChange={handleChange}
-                                className="hidden"
-                            />
-                            {type.charAt(0).toUpperCase() + type.slice(1)}
-                        </label>
-                    ))}
-                </div>
-                <p className="text-xs text-gray-500 mt-1">Choose the primary communication method for the debate.</p>
-            </div>
-
-            {/* Contact Info Checkbox */}
-            <div className="flex items-center pt-4">
-                <input
-                    type="checkbox"
-                    id="show_contact_info"
-                    name="show_contact_info"
-                    checked={formData.show_contact_info}
-                    onChange={handleChange}
-                    className="h-5 w-5 text-indigo-600 border-gray-600 rounded focus:ring-indigo-500 bg-gray-700"
-                />
-                <label htmlFor="show_contact_info" className="ml-3 text-sm font-medium text-gray-300 flex items-center">
-                    <UserPlus className="w-4 h-4 mr-1" />
-                    Allow participants to see my contact info (Email/Phone)
-                </label>
-            </div>
-
-            {/* Submission Button */}
-            <button
-                type="submit"
-                disabled={loading}
-                className={`w-full flex items-center justify-center py-4 mt-8 text-lg font-bold rounded-lg shadow-xl transition-all transform ${
-                    loading ? 'bg-gray-600 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 hover:scale-[1.01]'
-                }`}
-            >
-                {loading ? (
-                    'Creating Debate...'
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
+                {debates.length > 0 ? (
+                    debates
+                        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)) // Sort newest first
+                        .map(debate => (
+                            <DebateFeedCard key={debate.id} debate={debate} />
+                        ))
                 ) : (
-                    <>
-                        <Send className="w-5 h-5 mr-3" /> Create Debate
-                    </>
+                    <p className="text-center text-gray-400 md:col-span-2 lg:col-span-3">No debates are currently running or scheduled.</p>
                 )}
-            </button>
-        </form>
+            </div>
+        </div>
     );
 };
 
-// --- PAGES (Components used for routing) ---
 
-/**
- * 3. LoginPage Component
- * Handles user login and links to Forgot Password page (Register link added).
- */
+// 1. Authentication Pages (Login / Register)
+
 const LoginPage = () => {
-    const { login, isLoggedIn } = useAuthContext();
-    const navigate = useNavigate();
-    
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
-    const [error, setError] = useState('');
-
-    useEffect(() => {
-        if (isLoggedIn) {
-            navigate('/');
-        }
-    }, [isLoggedIn, navigate]);
-
-    const handleLogin = (e) => {
-        e.preventDefault();
-        setError('');
-
-        if (username.trim() && password.trim()) {
-            // NOTE: In a real app, you would validate credentials here
-            login(username.trim()); 
-        } else {
-            setError('Both username and password are required.');
-        }
-    };
-
-    return (
-        <div className="min-h-[70vh] flex flex-col items-center justify-center p-4">
-            <div className="w-full max-w-sm p-8 bg-gray-800 rounded-xl shadow-2xl border border-indigo-500/30">
-                <h1 className="text-3xl font-extrabold text-white text-center mb-6">Welcome Back</h1>
-                <p className="text-center text-gray-400 mb-8">Sign in to start debating.</p>
-
-                {error && (
-                    <p className="text-red-500 text-center font-medium mb-4">{error}</p>
-                )}
-
-                <form onSubmit={handleLogin} className="space-y-6">
-                    <div>
-                        <label htmlFor="username" className="block text-sm font-medium text-gray-300">
-                            Username
-                        </label>
-                        <input
-                            type="text"
-                            id="username"
-                            value={username}
-                            onChange={(e) => setUsername(e.target.value)}
-                            required
-                            className="mt-1 w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-                            placeholder="e.g., debate_master_99"
-                        />
-                    </div>
-
-                    <div>
-                        <label htmlFor="password" className="block text-sm font-medium text-gray-300">
-                            Password
-                        </label>
-                        <input
-                            type="password"
-                            id="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            required
-                            className="mt-1 w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-                            placeholder="••••••••"
-                        />
-                    </div>
-
-                    <div className="flex justify-end">
-                        <Link to="/forgot-password" className="text-sm font-medium text-indigo-400 hover:text-indigo-300 transition-colors">
-                            Forgot Password?
-                        </Link>
-                    </div>
-
-                    <button
-                        type="submit"
-                        className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-md text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
-                    >
-                        <LogOut className="w-5 h-5 mr-2 transform rotate-180" /> Sign In
-                    </button>
-                </form>
-                {/* Registration link RE-ADDED here */}
-                <div className="mt-6 text-center text-sm">
-                    <p className="text-gray-400">
-                        Don't have an account? 
-                        <Link to="/register" className="font-bold text-indigo-400 hover:text-indigo-300 ml-1 transition-colors">
-                            Register now
-                        </Link>
-                    </p>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-/**
- * 4. ForgotPasswordPage Component
- * Handles the mock flow for resetting a password via email.
- */
-const ForgotPasswordPage = () => {
-    const { resetPassword } = useAuthContext();
+    const { login, user } = useContext(AuthContext);
     const navigate = useNavigate();
 
-    const [email, setEmail] = useState('');
-    const [error, setError] = useState('');
-    const [message, setMessage] = useState('');
-    const [loading, setLoading] = useState(false);
-
-    const handleReset = async (e) => {
-        e.preventDefault();
-        setError('');
-        setMessage('');
-
-        if (!email.trim()) {
-            setError('Please enter your email address.');
-            return;
+    useEffect(() => {
+        if (user) {
+            // After successful login, navigate to the specific user's page
+            navigate(user.role === 'admin' ? '/admin' : '/dashboard');
         }
+    }, [user, navigate]);
 
-        setLoading(true);
-        try {
-            await resetPassword(email.trim());
-            setMessage('If an account exists for that email, a password reset link has been sent.');
-            setEmail('');
-        } catch (err) {
-            setError('Failed to process request. Please try again.');
-        } finally {
-            setLoading(false);
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        // Mocking login for any non-empty username
+        if (username) {
+            login(username);
         }
     };
 
     return (
-        <div className="min-h-[70vh] flex flex-col items-center justify-center p-4">
-            <div className="w-full max-w-sm p-8 bg-gray-800 rounded-xl shadow-2xl border border-indigo-500/30">
-                <h1 className="text-3xl font-extrabold text-white text-center mb-6">Forgot Password</h1>
-                <p className="text-center text-gray-400 mb-8">Enter your email and we'll send you a link to reset your password.</p>
-
-                {message && (
-                    <div className="text-green-500 text-center font-medium bg-green-900/30 p-3 rounded-lg mb-4 flex items-center justify-center">
-                        <Key className="w-5 h-5 mr-2" /> {message}
-                    </div>
-                )}
-                {error && (
-                    <p className="text-red-500 text-center font-medium mb-4">{error}</p>
-                )}
-
-                <form onSubmit={handleReset} className="space-y-6">
-                    <div>
-                        <label htmlFor="email" className="block text-sm font-medium text-gray-300">
-                            Email Address
-                        </label>
-                        <input
-                            type="email"
-                            id="email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            required
-                            className="mt-1 w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-                            placeholder="you@example.com"
-                        />
-                    </div>
-
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className={`w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-md text-sm font-bold text-white transition-colors ${
-                            loading ? 'bg-gray-600' : 'bg-indigo-600 hover:bg-indigo-700'
-                        }`}
-                    >
-                        {loading ? (
-                            <Loader className="w-5 h-5 animate-spin mr-2" />
-                        ) : (
-                            <Mail className="w-5 h-5 mr-2" />
-                        )}
-                        Send Reset Link
-                    </button>
-                </form>
-
-                <div className="mt-6 text-center text-sm">
-                    <p className="text-gray-400">
-                        Remember your password? 
-                        <Link to="/login" className="font-bold text-indigo-400 hover:text-indigo-300 ml-1 transition-colors">
-                            Back to Sign In
-                        </Link>
-                    </p>
-                </div>
-            </div>
-        </div>
+        <Card title="Login to DebateSphere" icon={Key} className="max-w-md mx-auto">
+            <form onSubmit={handleSubmit}>
+                <Input label="Username/Email" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="admin or customer_name" required />
+                <Input label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="secret" required />
+                <Button type="submit" className="w-full mt-4">Login</Button>
+            </form>
+            <p className="text-center mt-4 text-gray-400">
+                Don't have an account? <Link to="/register" className="text-indigo-400 hover:text-indigo-300">Register</Link>
+            </p>
+        </Card>
     );
 };
 
-/**
- * 5. RegisterPage Component
- * Handles user registration (RE-ADDED).
- */
 const RegisterPage = () => {
-    const { register, isLoggedIn } = useAuthContext();
+    const [username, setUsername] = useState('');
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const { login, user } = useContext(AuthContext);
     const navigate = useNavigate();
 
-    const [formData, setFormData] = useState({
-        username: '',
-        email: '',
-        password: '',
-        confirmPassword: ''
-    });
-    const [error, setError] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [success, setSuccess] = useState(false);
-
     useEffect(() => {
-        if (isLoggedIn) {
-            navigate('/');
+        if (user) {
+            navigate(user.role === 'admin' ? '/admin' : '/dashboard');
         }
-    }, [isLoggedIn, navigate]);
+    }, [user, navigate]);
 
-    const handleChange = (e) => {
-        setFormData({ ...formData, [e.target.id]: e.target.value });
-    };
-
-    const handleRegister = async (e) => {
+    const handleSubmit = (e) => {
         e.preventDefault();
-        setError('');
-        setSuccess(false);
-
-        if (!formData.username || !formData.email || !formData.password || !formData.confirmPassword) {
-            setError('All fields are required.');
-            return;
-        }
-
-        if (formData.password !== formData.confirmPassword) {
-            setError('Passwords do not match.');
-            return;
-        }
-
-        setLoading(true);
-        try {
-            const result = await register(formData.username.trim(), formData.email.trim(), formData.password);
-            if (result) {
-                setSuccess(true);
-                // Optionally redirect to login after success
-                setTimeout(() => navigate('/login'), 2000); 
-            } else {
-                 setError('Registration failed. Please try a different username/email.');
-            }
-        } catch (err) {
-            setError('An unexpected error occurred during registration.');
-        } finally {
-            setLoading(false);
+        // Mock registration, immediately logs the user in
+        if (username) {
+            login(username);
         }
     };
 
     return (
-        <div className="min-h-[70vh] flex flex-col items-center justify-center p-4">
-            <div className="w-full max-w-md p-8 bg-gray-800 rounded-xl shadow-2xl border border-indigo-500/30">
-                <h1 className="text-3xl font-extrabold text-white text-center mb-6">Create Your Account</h1>
-                <p className="text-center text-gray-400 mb-8">Join the platform and start contributing to debates.</p>
-
-                {error && (
-                    <p className="text-red-500 text-center font-medium mb-4">{error}</p>
-                )}
-                {success && (
-                    <div className="text-green-500 text-center font-medium bg-green-900/30 p-3 rounded-lg mb-4 flex items-center justify-center">
-                        <UserPlus className="w-5 h-5 mr-2" /> Registration successful! Redirecting to login...
-                    </div>
-                )}
-
-                <form onSubmit={handleRegister} className="space-y-4">
-                    <div>
-                        <label htmlFor="username" className="block text-sm font-medium text-gray-300">
-                            Username
-                        </label>
-                        <input
-                            type="text"
-                            id="username"
-                            value={formData.username}
-                            onChange={handleChange}
-                            required
-                            className="mt-1 w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-                            placeholder="Your unique handle"
-                        />
-                    </div>
-                    <div>
-                        <label htmlFor="email" className="block text-sm font-medium text-gray-300">
-                            Email Address
-                        </label>
-                        <input
-                            type="email"
-                            id="email"
-                            value={formData.email}
-                            onChange={handleChange}
-                            required
-                            className="mt-1 w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-                            placeholder="you@example.com"
-                        />
-                    </div>
-                    <div>
-                        <label htmlFor="password" className="block text-sm font-medium text-gray-300">
-                            Password
-                        </label>
-                        <input
-                            type="password"
-                            id="password"
-                            value={formData.password}
-                            onChange={handleChange}
-                            required
-                            className="mt-1 w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-                            placeholder="••••••••"
-                        />
-                    </div>
-                    <div>
-                        <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-300">
-                            Confirm Password
-                        </label>
-                        <input
-                            type="password"
-                            id="confirmPassword"
-                            value={formData.confirmPassword}
-                            onChange={handleChange}
-                            required
-                            className="mt-1 w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-                            placeholder="••••••••"
-                        />
-                    </div>
-
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className={`w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-md text-sm font-bold text-white transition-colors ${
-                            loading ? 'bg-gray-600' : 'bg-green-600 hover:bg-green-700'
-                        }`}
-                    >
-                        {loading ? (
-                            <Loader className="w-5 h-5 animate-spin mr-2" />
-                        ) : (
-                            <UserPlus className="w-5 h-5 mr-2" />
-                        )}
-                        Register
-                    </button>
-                </form>
-
-                <div className="mt-6 text-center text-sm">
-                    <p className="text-gray-400">
-                        Already have an account? 
-                        <Link to="/login" className="font-bold text-indigo-400 hover:text-indigo-300 ml-1 transition-colors">
-                            Sign In
-                        </Link>
-                    </p>
-                </div>
-            </div>
-        </div>
+        <Card title="Join DebateSphere" icon={UserPlus} className="max-w-md mx-auto">
+            <form onSubmit={handleSubmit}>
+                <Input label="Username" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Your unique name" required />
+                <Input label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@example.com" required />
+                <Input label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Choose a secure password" required />
+                <Button type="submit" className="w-full mt-4">Register and Start Trial</Button>
+            </form>
+            <p className="text-center mt-4 text-gray-400">
+                Already registered? <Link to="/login" className="text-indigo-400 hover:text-indigo-300">Login</Link>
+            </p>
+        </Card>
     );
 };
 
+// 2. Customer Dashboard & Core Pages
 
-/**
- * 6. HomePage Component
- */
-const HomePage = ({ debates }) => {
-    const activeDebates = debates.filter(d => d.status === 'Active' || d.status === 'Pending').slice(0, 6); // Show top 6
+const DebateList = ({ debates, userId, isCustomer = true }) => {
+    const navigate = useNavigate();
+    const { deleteDebate, createDebate } = useContext(DataContext);
+    const [isCreating, setIsCreating] = useState(false);
+    const [newTitle, setNewTitle] = useState('');
+    const [newTopic, setNewTopic] = useState('');
+
+    const handleDelete = (id) => {
+        if (window.confirm("Are you sure you want to delete this debate?")) {
+            deleteDebate(id);
+        }
+    };
+    
+    const handleCreate = (e) => {
+        e.preventDefault();
+        createDebate({ title: newTitle, topic: newTopic });
+        setIsCreating(false);
+        setNewTitle('');
+        setNewTopic('');
+    };
+
+    // Filter debates: Customers see only their own, Admin sees all
+    const debatesToDisplay = debates.filter(d => isCustomer ? d.hostId === userId : true);
+
+    return (
+        <Card title="Active Debates" icon={ClipboardList} className="col-span-1 lg:col-span-2">
+            <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold text-white">{isCustomer ? "My Hosted Debates (CRUD Access)" : "All Platform Debates"}</h3>
+                <Button onClick={() => setIsCreating(true)} className="flex items-center">
+                    <PlusCircle className="w-4 h-4 mr-1" /> Create New Debate
+                </Button>
+            </div>
+
+            {isCreating && (
+                <div className="mb-4 p-4 bg-gray-700 rounded-lg">
+                    <h4 className="font-semibold mb-2">Create New Debate</h4>
+                    <form onSubmit={handleCreate} className="space-y-2">
+                        <Input label="Title" value={newTitle} onChange={e => setNewTitle(e.target.value)} required placeholder="e.g., The Ethics of Self-Driving Cars" />
+                        <Input label="Topic" value={newTopic} onChange={e => setNewTopic(e.target.value)} required placeholder="e.g., Technology, Philosophy, Economics" />
+                        <div className="flex space-x-2 pt-2">
+                            <Button type="submit" variant="success">Save Debate</Button>
+                            <Button onClick={() => setIsCreating(false)} variant="secondary">Cancel</Button>
+                        </div>
+                    </form>
+                </div>
+            )}
+
+            <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+                {debatesToDisplay.length > 0 ? debatesToDisplay.map(debate => (
+                    <div key={debate.id} className="p-3 bg-gray-700 rounded-lg flex justify-between items-center hover:bg-gray-600 transition duration-150">
+                        <div>
+                            <p className="font-semibold text-indigo-300 cursor-pointer hover:underline" onClick={() => navigate(`/debate/${debate.id}`)}>{debate.title}</p>
+                            <span className="text-sm text-gray-400">Host: {debate.hostId} | {debate.topic} | {debate.participants} Participants</span>
+                        </div>
+                        <div className="space-x-2 flex items-center">
+                            <Button variant="secondary" onClick={() => navigate(`/debate/${debate.id}`)} className="text-xs py-1 px-2">
+                                View/Chat
+                            </Button>
+                            <Button variant="secondary" className="text-xs py-1 px-2">
+                                <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button variant="danger" onClick={() => handleDelete(debate.id)} className="text-xs py-1 px-2">
+                                <Trash2 className="w-4 h-4" />
+                            </Button>
+                        </div>
+                    </div>
+                )) : <p className="text-gray-400">No debates found.</p>}
+            </div>
+        </Card>
+    );
+};
+
+const MembershipAndCredits = ({ userId, userCredits, userMembership, buyCredits, subscribe }) => {
+    const trialEndDate = userId && localStorage.getItem('userData') && JSON.parse(localStorage.getItem('userData'))[userId]?.trialEndDate;
+    const daysLeft = trialEndDate ? Math.ceil((new Date(trialEndDate) - new Date()) / (1000 * 60 * 60 * 24)) : 0;
+
+    const handleSubscribe = (plan) => {
+        subscribe(plan);
+        alert(`Successfully subscribed to the ${plan} plan!`);
+    };
+    
+    const handleBuyCredits = () => {
+        const amount = parseInt(prompt("Enter amount of credits to buy (e.g., 50):"));
+        if (amount && !isNaN(amount) && amount > 0) {
+            buyCredits(amount);
+            alert(`${amount} credits purchased!`);
+        } else {
+            alert("Invalid amount.");
+        }
+    };
+
+    return (
+        <Card title="Account Overview" icon={CreditCard}>
+            <div className="space-y-4">
+                <p className="text-gray-300 flex items-center">
+                    <Zap className="w-5 h-5 mr-2 text-yellow-400" />
+                    <span className="font-semibold">Credits Balance:</span> {userCredits}
+                </p>
+                <p className="text-gray-300 flex items-center">
+                    <Activity className="w-5 h-5 mr-2 text-green-400" />
+                    <span className="font-semibold">Membership:</span> 
+                    <span className={`ml-2 font-bold uppercase ${userMembership === 'trial' ? 'text-indigo-400' : 'text-green-400'}`}>
+                        {userMembership}
+                    </span>
+                </p>
+
+                {userMembership === 'trial' && daysLeft > 0 && (
+                    <div className="p-3 bg-indigo-900/50 rounded-lg text-indigo-300 text-sm flex items-center">
+                        <Clock className="w-4 h-4 mr-2" />
+                        Free Trial ends in **{daysLeft} days**.
+                    </div>
+                )}
+                
+                <div className="pt-2 border-t border-gray-700 space-y-3">
+                    <Button onClick={handleBuyCredits} variant="secondary" className="w-full flex justify-center items-center">
+                        <DollarSign className="w-4 h-4 mr-2" /> Buy Credits
+                    </Button>
+                    {userMembership !== 'annual' && (
+                        <Button onClick={() => handleSubscribe('annual')} variant="primary" className="w-full flex justify-center items-center">
+                            <Gift className="w-4 h-4 mr-2" /> Upgrade to Annual Plan
+                        </Button>
+                    )}
+                </div>
+            </div>
+        </Card>
+    );
+};
+
+const CustomerDashboard = () => {
+    const { user } = useContext(AuthContext);
+    const { debates, userCredits, userMembership, buyCredits, subscribe } = useContext(DataContext);
     
     return (
-        <div className="space-y-12">
-            <header className="text-center py-16 bg-gray-800 rounded-xl shadow-lg border border-indigo-500/20">
-                <h1 className="text-5xl font-extrabold text-white mb-4">
-                    Welcome to ZAG Debate
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-3">
+                <h1 className="text-3xl font-extrabold text-white mb-6 flex items-center">
+                    <Home className="w-8 h-8 mr-3 text-indigo-400" /> Welcome, {user?.username}!
                 </h1>
-                <p className="text-lg text-gray-400 mb-8 max-w-2xl mx-auto">
-                    Join the conversation. Explore heated topics, take a side, and contribute your arguments in structured, time-limited debates.
-                </p>
-                <Link to="/create">
-                    <button className="inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-bold rounded-full shadow-lg text-white bg-indigo-600 hover:bg-indigo-700 transition-all transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-indigo-500 focus:ring-opacity-50">
-                        <PlusCircle className="w-5 h-5 mr-2" /> Start a New Debate
-                    </button>
-                </Link>
-            </header>
-
-            {/* Active Debates Section */}
-            <section>
-                <h2 className="text-3xl font-bold text-white border-b-2 border-indigo-500 pb-2 mb-6">
-                    Featured Debates
-                </h2>
-                <DebateList debates={activeDebates} />
-                <div className="text-center mt-8">
-                    <Link to="/debates" className="text-lg font-bold text-indigo-400 hover:text-indigo-300 transition-colors flex items-center justify-center">
-                        <Filter className="w-5 h-5 mr-2" /> View All Debates
-                    </Link>
-                </div>
-            </section>
+            </div>
+            
+            <MembershipAndCredits 
+                userId={user?.id} 
+                userCredits={userCredits} 
+                userMembership={userMembership} 
+                buyCredits={buyCredits} 
+                subscribe={subscribe} 
+            />
+            
+            <DebateList debates={debates} userId={user?.id} isCustomer={true} />
+            
         </div>
     );
 };
 
-/**
- * 7. CreateDebatePage Component
- */
-const CreateDebatePage = ({ addDebate }) => {
-    const { user } = useAuthContext();
-    const navigate = useNavigate();
 
-    // Protection: User must be logged in to create a debate
-    if (!user) {
-        return (
-            <div className="text-center py-20 bg-gray-800 rounded-xl shadow-lg border border-red-500/20">
-                <h2 className="text-3xl font-bold text-red-400 mb-4">Access Denied</h2>
-                <p className="text-lg text-gray-400 mb-6">
-                    You must be logged in to create a new debate.
-                </p>
-                <button 
-                    onClick={() => navigate('/login')}
-                    className="inline-flex items-center px-6 py-3 border border-transparent text-base font-bold rounded-lg shadow-md text-white bg-red-600 hover:bg-red-700 transition-colors"
-                >
-                    Go to Login
-                </button>
+// 3. Admin Dashboard
+
+const AdminDashboard = () => {
+    const { debates } = useContext(DataContext);
+    
+    // Calculate commission statistics
+    const commissionEligibleDebates = debates.filter(d => d.participants >= COMMISSION_THRESHOLD);
+    const totalPotentialRevenue = debates.reduce((sum, d) => sum + (d.participants * 2), 0); // Mock revenue: $2 per participant
+    const totalCommissionableRevenue = commissionEligibleDebates.reduce((sum, d) => sum + (d.participants * 2), 0); 
+    const adminCommission = totalCommissionableRevenue * COMMISSION_SPLIT.admin;
+    const creatorCommission = totalCommissionableRevenue * COMMISSION_SPLIT.creator;
+
+    return (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-3">
+                <h1 className="text-3xl font-extrabold text-white mb-6 flex items-center">
+                    <Cpu className="w-8 h-8 mr-3 text-red-500" /> Admin Control Panel
+                </h1>
             </div>
-        );
-    }
 
-    const handleNewDebate = (debateData) => {
-        addDebate(debateData);
-        navigate('/debates'); // Redirect to all debates page after creation
+            {/* Admin Overview Cards */}
+            <Card title="Revenue & Commission" icon={TrendingUp}>
+                <p className="text-2xl font-bold text-green-400">{formatCurrency(totalPotentialRevenue)}</p>
+                <p className="text-sm text-gray-400 mt-1">Total Platform Revenue (Mock)</p>
+                <div className="mt-4 border-t border-gray-700 pt-3">
+                    <p className="text-gray-300">Admin Cut (25%): <span className="font-bold text-red-400">{formatCurrency(adminCommission)}</span></p>
+                    <p className="text-gray-300">Creator Cut (75%): <span className="font-bold text-indigo-400">{formatCurrency(creatorCommission)}</span></p>
+                    <p className="text-xs mt-2 text-gray-500">Threshold: {COMMISSION_THRESHOLD} Participants.</p>
+                </div>
+            </Card>
+
+            <Card title="User & Membership Stats" icon={Users}>
+                <p className="text-2xl font-bold text-indigo-400">4 / 15</p>
+                <p className="text-sm text-gray-400 mt-1">Active / Total Users (Mock)</p>
+                <div className="mt-4 border-t border-gray-700 pt-3 text-sm">
+                    <p>Subscribed: 2</p>
+                    <p>On Trial: 1</p>
+                    <p>Credits Purchased (Mock): $500</p>
+                </div>
+            </Card>
+            
+            <Card title="System Settings" icon={Settings}>
+                <div className="space-y-3">
+                    <p className="text-gray-300 flex justify-between">
+                        Commission Threshold: 
+                        <span className="font-bold text-yellow-400">{COMMISSION_THRESHOLD}</span>
+                    </p>
+                    <p className="text-gray-300 flex justify-between">
+                        Initial Trial Period: 
+                        <span className="font-bold text-yellow-400">{INITIAL_TRIAL_WEEKS} Weeks</span>
+                    </p>
+                    <Button variant="secondary" className="w-full mt-2">Update Global Settings</Button>
+                </div>
+            </Card>
+
+            {/* All Debates CRUD */}
+            <DebateList debates={debates} isCustomer={false} />
+            
+        </div>
+    );
+};
+
+
+// 4. Other Core Pages
+
+const ProfileSettings = () => {
+    const { user } = useContext(AuthContext);
+    const [name, setName] = useState(user?.username || '');
+    const [email, setEmail] = useState(user?.email || '');
+    const [password, setPassword] = useState('');
+    const [showEmail, setShowEmail] = useState(true);
+    const [showPhone, setShowPhone] = useState(false);
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        alert("Profile updated! (Mock save to DB)");
     };
 
-    return (
-        <div className="max-w-3xl mx-auto space-y-8">
-            <header className="text-center">
-                <h1 className="text-4xl font-extrabold text-white mb-2 flex items-center justify-center">
-                    <PlusCircle className="w-8 h-8 mr-3 text-indigo-400" /> Start a New Debate
-                </h1>
-                <p className="text-gray-400">Define the topic and settings for your structured debate.</p>
-            </header>
-            
-            <CreateDebateForm onSubmit={handleNewDebate} />
-        </div>
-    );
-};
-
-/**
- * 8. AllDebatesPage Component (NEW)
- */
-const AllDebatesPage = ({ debates }) => {
-    const [filter, setFilter] = useState('All'); // 'All', 'Active', 'Pending', 'Completed'
-
-    const filteredDebates = debates.filter(debate => {
-        if (filter === 'All') return true;
-        return debate.status === filter;
-    });
-
-    const filterOptions = [
-        { name: 'All', icon: Filter },
-        { name: 'Active', icon: Activity },
-        { name: 'Pending', icon: Clock },
-        { name: 'Completed', icon: CheckCircle },
-    ];
-
-    return (
-        <div className="space-y-8">
-            <header>
-                <h1 className="text-4xl font-extrabold text-white mb-2 flex items-center">
-                    <Zap className="w-8 h-8 mr-3 text-indigo-400" /> All Debates
-                </h1>
-                <p className="text-gray-400">Browse current, upcoming, and past discussions on the ZAG Debate platform.</p>
-            </header>
-
-            {/* Filter Tabs */}
-            <div className="flex flex-wrap gap-4 p-4 bg-gray-800 rounded-lg shadow-inner">
-                {filterOptions.map(({ name, icon: Icon }) => (
-                    <button
-                        key={name}
-                        onClick={() => setFilter(name)}
-                        className={`
-                            flex items-center px-4 py-2 rounded-full font-semibold text-sm transition-all
-                            ${filter === name 
-                                ? 'bg-indigo-600 text-white shadow-lg' 
-                                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                            }
-                        `}
-                    >
-                        <Icon className="w-4 h-4 mr-2" />
-                        {name} ({debates.filter(d => name === 'All' || d.status === name).length})
-                    </button>
-                ))}
-            </div>
-
-            {/* Debate List */}
-            <section>
-                <h2 className="text-2xl font-bold text-white mb-4">
-                    Showing: {filter} Debates
-                </h2>
-                <DebateList debates={filteredDebates} />
-            </section>
-        </div>
-    );
-};
-
-// --- MAIN APP COMPONENT ---
-
-// Initial hardcoded list of debates
-const initialDebates = [
-    { id: 1, title: "The use of AI in education should be limited.", createdBy: "Alice", status: "Active", pros: 15, cons: 12 },
-    { id: 2, title: "Remote work is permanently better than office work.", createdBy: "Bob", status: "Active", pros: 20, cons: 25 },
-    { id: 3, title: "Universal Basic Income is a viable economic strategy.", createdBy: "Charlie", status: "Pending", pros: 8, cons: 5 },
-    { id: 4, title: "Cryptocurrency is a passing fad.", createdBy: "Diana", status: "Completed", pros: 30, cons: 35 },
-    { id: 5, title: "Should schools offer mandatory financial literacy classes?", createdBy: "Eve", status: "Active", pros: 18, cons: 2 },
-    { id: 6, title: "Is it ethical to eat lab-grown meat?", createdBy: "Frank", status: "Pending", pros: 12, cons: 10 },
-    { id: 7, title: "The metric system should be mandatory worldwide.", createdBy: "Grace", status: "Completed", pros: 45, cons: 15 },
-    { id: 8, title: "Does social media harm mental health?", createdBy: "Heidi", status: "Active", pros: 50, cons: 5 },
-    { id: 9, title: "Should the voting age be lowered to 16?", createdBy: "Ivan", status: "Completed", pros: 22, cons: 28 },
-];
-
-// Helper to get initial state from localStorage or use default
-const getInitialDebates = () => {
-    const savedDebates = localStorage.getItem('debateList');
-    try {
-        if (savedDebates) {
-            return JSON.parse(savedDebates);
-        }
-    } catch (e) {
-        console.error("Could not parse saved debates from localStorage", e);
+    if (!user) {
+        return <TempPage title="Access Denied" />;
     }
-    return initialDebates;
+
+    return (
+        <Card title="Profile Settings" icon={Settings} className="max-w-xl mx-auto">
+            <form onSubmit={handleSubmit} className="space-y-4">
+                <Input label="Name" value={name} onChange={(e) => setName(e.target.value)} required />
+                <Input label="Username" value={user.username} disabled />
+                <Input label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                <Input label="New Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Leave blank to keep current password" />
+                
+                <div className="pt-4 border-t border-gray-700">
+                    <h3 className="text-lg font-semibold mb-2 text-white">Contact Visibility</h3>
+                    <label className="flex items-center space-x-2 text-gray-400">
+                        <input type="checkbox" checked={showEmail} onChange={() => setShowEmail(!showEmail)} className="form-checkbox h-5 w-5 text-indigo-600 bg-gray-700 border-gray-600 rounded" />
+                        <span>Display email in debates</span>
+                    </label>
+                    <label className="flex items-center space-x-2 text-gray-400 mt-2">
+                        <input type="checkbox" checked={showPhone} onChange={() => setShowPhone(!showPhone)} className="form-checkbox h-5 w-5 text-indigo-600 bg-gray-700 border-gray-600 rounded" />
+                        <span>Display phone number in debates (Mock)</span>
+                    </label>
+                </div>
+
+                <Button type="submit" className="w-full mt-6">Save Profile</Button>
+            </form>
+        </Card>
+    );
 };
 
+const DebateRoom = () => {
+    const location = useLocation();
+    const debateId = location.pathname.split('/debate/')[1];
+    const { debates } = useContext(DataContext);
+    const debate = debates.find(d => d.id === parseInt(debateId));
+
+    if (!debate) {
+        return <TempPage title="Debate Not Found" />;
+    }
+
+    // Mock functions for real-time features
+    const startCall = (type) => alert(`Starting ${type} call for Debate #${debateId}! (Requires WebRTC implementation)`);
+
+    return (
+        <Card title={`Debate: ${debate.title}`} icon={Send} className="h-full">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Chat/Video Area */}
+                <div className="lg:col-span-2 flex flex-col h-[60vh] min-h-[400px] bg-gray-700 rounded-xl shadow-inner">
+                    <div className="p-4 border-b border-gray-600 flex justify-between items-center">
+                        <p className="text-gray-300 font-medium">Topic: <span className="text-indigo-300">{debate.topic}</span></p>
+                        {/* Real-Time Call Controls */}
+                        <div className="flex space-x-2">
+                            <Button onClick={() => startCall('Voice')} variant="secondary" className="p-1.5"><Zap className='w-4 h-4' /> Voice</Button>
+                            <Button onClick={() => startCall('Video')} variant="secondary" className="p-1.5"><Zap className='w-4 h-4' /> Video</Button>
+                        </div>
+                    </div>
+                    
+                    {/* Chat Window Mock */}
+                    <div className="flex-grow overflow-y-auto p-4 bg-gray-800 space-y-3">
+                        <div className="bg-indigo-900/40 p-2 rounded-lg max-w-sm">Host ({debate.hostId}): Welcome everyone! Please be respectful.</div>
+                        <div className="bg-gray-600/50 p-2 rounded-lg max-w-sm ml-auto text-right">User2: Excited to debate this topic!</div>
+                    </div>
+
+                    {/* Chat Input */}
+                    <div className="flex p-4 border-t border-gray-600">
+                        <Input placeholder="Type your message..." className="flex-grow mb-0" />
+                        <Button className="ml-2">Send</Button>
+                    </div>
+                </div>
+
+                {/* Participant List/Debate Info */}
+                <div className="lg:col-span-1 bg-gray-700 rounded-xl p-4">
+                    <h3 className="text-lg font-semibold mb-3 border-b border-gray-600 pb-2">Debate Info & Participants ({debate.participants})</h3>
+                    <p className="text-sm text-gray-400 mb-4">Hosted by: <span className='font-bold text-white'>{debate.hostId}</span></p>
+                    <ul className="space-y-2 text-sm text-gray-300 max-h-[300px] overflow-y-auto">
+                        <li className="font-bold text-indigo-400 flex items-center"><User className='w-4 h-4 mr-1' /> {debate.hostId} (Host)</li>
+                        <li><User className='w-4 h-4 mr-1 inline' /> user2</li>
+                        <li><User className='w-4 h-4 mr-1 inline' /> user3</li>
+                        <li className='text-gray-500'>... and {debate.participants - 3} others.</li>
+                    </ul>
+                </div>
+            </div>
+        </Card>
+    );
+};
+
+
+const TempPage = ({ title = "Page Title", children }) => (
+    <Card title={title} icon={CheckCircle}>
+        <p className="text-gray-400 mb-4">
+            This is a placeholder page for the "{title}" route. The logic is defined in the router, but the full UI is yet to be built.
+        </p>
+        {children}
+    </Card>
+);
+
+// --- MAIN APPLICATION ROUTER LOGIC ---
 
 const AppContent = () => {
+    const { user, loading } = useContext(AuthContext);
+    const { debates, loading: dataLoading } = useContext(DataContext);
     const location = useLocation();
-    const { user } = useAuthContext(); // <-- IMPORTANT: Get the user from context
-    // 1. Load from localStorage or use initialDebates if nothing is saved
-    const [debates, setDebates] = useState(getInitialDebates);
+    const navigate = useNavigate();
     const [content, setContent] = useState(null);
+    const path = location.pathname;
 
-    // 2. Save to localStorage whenever debates change
+    // Use combined loading state
+    const isLoading = loading || dataLoading;
+
+    // Route Logic (handles the routing without using <Route> components inside AppContent)
     useEffect(() => {
-        localStorage.setItem('debateList', JSON.stringify(debates));
-    }, [debates]);
+        if (isLoading) {
+            setContent(<div className="text-center py-20"><Loader className="w-10 h-10 animate-spin mx-auto text-indigo-500" /> <p className="mt-2 text-gray-400">Loading...</p></div>);
+            return;
+        }
 
+        let currentPage = null;
+        
+        // Define paths that require authentication
+        const protectedPaths = ['/dashboard', '/admin', '/profile', '/debate']; 
+        
+        // If not logged in, but trying to access a protected path, redirect to login
+        if (!user && protectedPaths.some(p => path.startsWith(p))) {
+            navigate('/login');
+            return;
+        }
 
-    // Function to add a new debate
-    const addDebate = (newDebateData) => {
-        const nextId = debates.length > 0 ? Math.max(...debates.map(d => d.id)) + 1 : 1;
-        const newDebate = {
-            id: nextId,
-            ...newDebateData,
-            createdBy: 'User', // Placeholder
-            status: 'Pending',
-            pros: 0,
-            cons: 0,
-        };
-        setDebates(prevDebates => [...prevDebates, newDebate]);
-    };
-
-    // Simple router implementation using useLocation
-    useEffect(() => {
-        const path = location.pathname;
-        let currentPage;
-
-        // Custom Routing Logic
         switch (path) {
             case '/':
-            case '/home':
-                currentPage = <HomePage debates={debates} />;
+                // New: Default path is the General Home Page / Debate Feed
+                currentPage = <GeneralHomePage />;
                 break;
-            case '/debates': 
-                currentPage = <AllDebatesPage debates={debates} />;
-                break;
-            case '/create':
-                currentPage = <CreateDebatePage addDebate={addDebate} />;
-                break;
-            // ... (inside the switch statement in AppContent)
-            case '/admin':
-            // ... inside the switch statement that handles routing
-
-case '/admin':
-    // FIX: Check for the 'is_admin' property (from Django backend) OR the 'admin' role string (from context standardization)
-    const isAdmin = user && (user.is_admin === true || user.role === 'admin');
-    
-    if (isAdmin) {
-        currentPage = <AdminDashboard />;
-    } else {
-        // If the access is still denied, this page is shown
-        currentPage = <TempPage title="Access Denied - Admin Only" />;
-    }
-    break;
-
-// ...
-// ...
             case '/login':
                 currentPage = <LoginPage />;
                 break;
-            case '/register': 
+            case '/register':
                 currentPage = <RegisterPage />;
                 break;
-            case '/forgot-password': 
-                currentPage = <ForgotPasswordPage />;
+            case '/dashboard':
+                // Protected route: must be logged in, must NOT be admin
+                if (user?.role !== 'customer') {
+                    // Redirect non-customer/logged-in users (like admins) away from customer dashboard
+                    navigate(user?.role === 'admin' ? '/admin' : '/login');
+                    return;
+                }
+                currentPage = <CustomerDashboard />;
+                break;
+            case '/admin':
+                // Highly protected route: must be logged in AND must be admin
+                if (user?.role !== 'admin') {
+                    currentPage = <TempPage title="Access Denied" icon={Lock}><p className="text-red-400">You must be an Administrator to access this page.</p></TempPage>;
+                } else {
+                    currentPage = <AdminDashboard />;
+                }
+                break;
+            case '/profile':
+                currentPage = <ProfileSettings />;
                 break;
             default:
-                // Check for dynamic debate ID route (e.g., /debate/1)
+                // Dynamic debate route handling: /debate/:id
                 if (path.startsWith('/debate/')) {
                     const debateId = parseInt(path.split('/')[2]);
                     const debate = debates.find(d => d.id === debateId);
-                    // For now, redirect dynamic pages to a TempPage
-                    currentPage = debate 
-                        ? <TempPage title={`Debate: ${debate.title}`} />
-                        : <TempPage title="Debate Not Found" />;
+                    
+                    if (user) {
+                        currentPage = debate
+                            ? <DebateRoom />
+                            : <TempPage title="Debate Not Found" icon={Filter} />;
+                    } else {
+                        // This case is already handled by the early redirect above, but included for safety
+                        navigate('/login');
+                        return;
+                    }
                 } else {
-                    currentPage = <TempPage title="404 - Page Not Found" />;
+                    // 404 handler
+                    currentPage = (
+                        <TempPage title="404 - Page Not Found" icon={Mail} >
+                            <p className={`text-xl font-bold ${getIconClass("404")}`}>
+                                The URL path was not recognized.
+                            </p>
+                        </TempPage>
+                    );
                 }
                 break;
         }
+        
         setContent(currentPage);
-    }, [location.pathname, debates, user]); // Include 'user' in dependency array
+
+    }, [location.pathname, user, isLoading, navigate, debates]); 
 
     return (
         <div className="min-h-screen flex flex-col bg-gray-900 text-white font-sans">
@@ -1039,7 +904,9 @@ case '/admin':
 const App = () => (
     <Router>
         <AuthProvider>
-            <AppContent />
+            <DataProvider>
+                <AppContent />
+            </DataProvider>
         </AuthProvider>
     </Router>
 );

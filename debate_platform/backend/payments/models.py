@@ -50,12 +50,16 @@ class Transaction(models.Model):
         ('SUB', 'Subscription Payment'),
         ('CRD', 'Credit Purchase'),
         ('DEB', 'Debate Fee Payment'),
-        ('COM', 'Commission Withdrawal'),
+        ('COM', 'Commission Withdrawal'), # Old type, keeping for compatibility
+        ('EAR', 'Creator Earning Accrual'), # New: Earnings accrued from debate fees (Creator's Share)
+        ('WDR', 'Creator Withdrawal to Credits'), # New: Cash-out of EAR balance to UserCredit
     ]
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='transactions')
     transaction_type = models.CharField(max_length=3, choices=TRANSACTION_TYPES)
-    amount = models.DecimalField(max_digits=10, decimal_places=2) # Positive for Income, Negative for Expense/Payout
+    amount = models.DecimalField(max_digits=10, decimal_places=2, help_text="Positive for income/accrual, Negative for expense/withdrawal")
     timestamp = models.DateTimeField(auto_now_add=True)
-    
+    # Optional link to a debate for context
+    debate_id = models.IntegerField(null=True, blank=True) 
+
     def __str__(self):
-        return f"{self.transaction_type} - ${self.amount} by {self.user.username}"
+        return f"[{self.get_transaction_type_display()}] {self.user.username if self.user else 'Deleted User'}: {self.amount}"

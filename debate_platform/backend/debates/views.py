@@ -1,13 +1,14 @@
 from rest_framework import generics, permissions
 from rest_framework.permissions import IsAdminUser
 from .models import Debate
-from .serializers import DebateSerializer # Assuming DebateSerializer exists
+# Assuming you have a DebateSerializer defined in debates/serializers.py
+from .serializers import DebateSerializer 
 from payments.models import UserCredit, UserSubscription, Transaction 
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from django.db import transaction
-from django.db.models import Sum, F # Import Sum and F for aggregation
+from django.db.models import Sum, F 
 from django.utils import timezone
 
 # Custom permission to allow Admins full control, but only allow non-admins to list/create/join
@@ -24,8 +25,7 @@ class IsAdminOrReadOnly(permissions.BasePermission):
 
 class DebateListCreateView(generics.ListCreateAPIView):
     queryset = Debate.objects.all().order_by('-created_at')
-    # Assuming DebateSerializer exists for this model
-    # serializer_class = DebateSerializer 
+    serializer_class = DebateSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def perform_create(self, serializer):
@@ -34,7 +34,7 @@ class DebateListCreateView(generics.ListCreateAPIView):
 
 class DebateDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Debate.objects.all()
-    # serializer_class = DebateSerializer
+    serializer_class = DebateSerializer
     permission_classes = [IsAdminOrReadOnly]
 
     def perform_update(self, serializer):
@@ -77,7 +77,8 @@ class DebateJoinView(APIView):
 
         # 1. Pre-Check: Credits and Subscription
         user_credit, _ = UserCredit.objects.get_or_create(user=user)
-        required_credits = int(fee) # Assuming 1:1 conversion for simplicity (if UserCredit.balance is IntegerField)
+        # Convert to integer for comparison with UserCredit.balance, assuming 1:1 credit-to-fee mapping
+        required_credits = int(fee) 
 
         # Check for active subscription
         is_subscriber = UserSubscription.objects.filter(
@@ -105,8 +106,11 @@ class DebateJoinView(APIView):
                         debate_id=debate.pk
                     )
 
-                    # Log the creator's earning accrual (75% share)
-                    creator_share = debate.creator_earning_per_participant
+                    # Calculate creator share (assuming 75% for creator, 25% commission)
+                    # NOTE: This should match the logic in the Debate model if defined there.
+                    creator_share = fee * (1 - Debate.ADMIN_COMMISSION_RATE)
+                    
+                    # Log the creator's earning accrual
                     Transaction.objects.create(
                         user=debate.creator,
                         transaction_type='EAR', # Earning Accrual
@@ -114,55 +118,51 @@ class DebateJoinView(APIView):
                         debate_id=debate.pk
                     )
                     
-                    # Note: The remaining 25% (Platform's Commission) is the difference,
-                    # which is now tracked implicitly.
-
                 # Add user to debate participants
                 debate.participants.add(user)
                 
             return Response({"detail": "Successfully joined the debate."}, status=status.HTTP_200_OK)
 
         except Exception as e:
-            # Note: A real implementation would handle specific exceptions like Credit balance going negative
             return Response({"detail": f"An error occurred during joining: {e}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class CreatorEarningView(APIView):
     """
     Shows the debate creator their total accrued, unwithdrawn earnings balance.
-    Accessed via: /api/debates/earnings/
+    Maps to /api/debates/earnings/
     """
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
         user = request.user
         
-        # Total positive EAR (Earning Accrual) transactions
+        # Sum of Earning Accruals (EAR)
         earnings = Transaction.objects.filter(user=user, transaction_type='EAR').aggregate(Sum('amount'))['amount__sum'] or 0
-        # Total negative WDR (Withdrawal) transactions
+        # Sum of Withdrawal Transactions (WDR - these amounts are stored as negative)
         withdrawals = Transaction.objects.filter(user=user, transaction_type='WDR').aggregate(Sum('amount'))['amount__sum'] or 0
         
-        # WDR amounts are negative, so adding them (which is subtraction) is the net balance
+        # WDR amounts are negative (to offset EAR), so adding them calculates the net balance
         current_earning_balance = earnings + withdrawals 
         
         return Response({
             "creator_username": user.username,
-            "total_accrued_earnings": current_earning_balance,
-            "details": "This is your withdrawable balance from debate fees (unconverted to credits)."
+            # Format to two decimal places for currency display
+            "withdrawable_balance": f"{current_earning_balance:.2f}",
         }, status=status.HTTP_200_OK)
 
 
 class CommissionWithdrawalView(APIView):
     """
     Allows the debate creator to withdraw their accrued earnings into their UserCredit balance.
-    Accessed via: /api/debates/withdraw/
+    Maps to /api/debates/withdraw-earnings/
     """
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
         user = request.user
         
-        # 1. Calculate Total Withdrawable Earnings (same logic as CreatorEarningView)
+        # 1. Calculate Total Withdrawable Earnings
         earnings = Transaction.objects.filter(user=user, transaction_type='EAR').aggregate(Sum('amount'))['amount__sum'] or 0
         withdrawals = Transaction.objects.filter(user=user, transaction_type='WDR').aggregate(Sum('amount'))['amount__sum'] or 0
         
@@ -174,12 +174,13 @@ class CommissionWithdrawalView(APIView):
         # 2. Process Withdrawal (Atomic operation)
         try:
             with transaction.atomic():
-                # a) Update User Credits
-                # Use select_for_update to lock the row during the transaction
                 user_credit = UserCredit.objects.select_for_update().get(user=user)
                 
                 # Convert the decimal earning to an integer for credit balance
-                credit_amount = int(amount_to_withdraw)
+                # Note: We must round down or truncate if converting float to int for credits
+                credit_amount = int(amount_to_withdraw) 
+                
+                # a) Add credits to user's balance
                 user_credit.balance += credit_amount
                 user_credit.save()
                 
@@ -187,12 +188,12 @@ class CommissionWithdrawalView(APIView):
                 Transaction.objects.create(
                     user=user,
                     transaction_type='WDR',
-                    amount=-amount_to_withdraw, # Negative amount to zero out the accrual balance
-                    # description=f"Withdrawal of {amount_to_withdraw} earnings into credits."
+                    # Amount to zero out the existing positive EAR accrual balance
+                    amount=-amount_to_withdraw, 
                 )
                 
             return Response({
-                "detail": f"Successfully withdrew {amount_to_withdraw:.2f} in earnings and converted to {credit_amount} credits.",
+                "detail": f"Successfully withdrew ${amount_to_withdraw:.2f} in earnings and converted to {credit_amount} credits.",
                 "new_credit_balance": user_credit.balance
             }, status=status.HTTP_200_OK)
 

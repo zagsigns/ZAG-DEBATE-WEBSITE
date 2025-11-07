@@ -1,148 +1,144 @@
-import json
 from channels.generic.websocket import AsyncWebsocketConsumer
-from asgiref.sync import sync_to_async
-from .models import Debate, Message
+import json
+from channels.db import database_sync_to_async
+from django.contrib.auth.models import AnonymousUser
+from debates.models import Debate
 from accounts.models import User
 
 class DebateConsumer(AsyncWebsocketConsumer):
+    """
+    Handles real-time communication for a specific debate room, including chat 
+    and signals for video/voice/group calls.
+    """
+    
     async def connect(self):
-        # The debate ID will be passed in the URL path, e.g., ws://.../ws/debates/1/
+        # The user is attached to scope['user'] by TokenAuthMiddleware
+        self.user = self.scope['user'] 
         self.debate_id = self.scope['url_route']['kwargs']['debate_id']
         self.debate_group_name = f'debate_{self.debate_id}'
-        self.user = self.scope['user']
-
-        if not self.user.is_authenticated:
-            await self.close(code=4001) # Not authenticated
+        
+        # 1. CRITICAL: Check Authentication and Debate Existence
+        if not await self.is_user_authorized():
+            await self.close(code=4001) # 4001 = Auth Failure
             return
 
-        # Check if the user is a participant (optional but recommended for access control)
-        is_participant = await self.is_user_participant()
-        if not is_participant:
-            await self.close(code=4003) # Forbidden
-            return
-
-        # Join room group
+        # 2. Join the group (Channel Layer)
         await self.channel_layer.group_add(
             self.debate_group_name,
             self.channel_name
         )
-
+        
+        # 3. Accept the connection
         await self.accept()
 
+        # Optional: Announce that a user has joined the room
+        await self.channel_layer.group_send(
+            self.debate_group_name,
+            {
+                'type': 'debate.message',
+                'message': f'{self.user.username} has joined the debate.',
+                'sender': 'System',
+                'timestamp': str(timezone.now()), # Note: requires timezone import
+            }
+        )
+
     async def disconnect(self, close_code):
-        # Leave room group
+        # Announce the user is leaving
+        if self.user and self.user.is_authenticated:
+            await self.channel_layer.group_send(
+                self.debate_group_name,
+                {
+                    'type': 'debate.message',
+                    'message': f'{self.user.username} has left the debate.',
+                    'sender': 'System',
+                    'timestamp': str(timezone.now()),
+                }
+            )
+        
+        # Leave the group
         await self.channel_layer.group_discard(
             self.debate_group_name,
             self.channel_name
         )
 
-    # Receive message from WebSocket
     async def receive(self, text_data):
-        text_data_json = json.loads(text_data)
-        message = text_data_json.get('message')
+        """Receives messages from the WebSocket and routes them."""
+        data = json.loads(text_data)
+        command = data.get('command')
 
-        if message:
-            # Save message to database (synchronous operation)
-            await self.save_message(message)
+        if command == 'send_chat':
+            await self.send_chat_message(data)
+        elif command == 'video_signal':
+            await self.send_video_signal(data)
+        # Add other commands like 'start_call', 'end_call', etc.
 
-            # Send message to room group
-            await self.channel_layer.group_send(
-                self.debate_group_name,
-                {
-                    'type': 'chat_message',
-                    'message': message,
-                    'username': self.user.username,
-                    'timestamp': str(await sync_to_async(self.get_current_time)()),
-                }
-            )
+    async def send_chat_message(self, data):
+        """Sends a standard chat message to the group."""
+        message = data.get('message')
+        
+        # Send message to room group
+        await self.channel_layer.group_send(
+            self.debate_group_name,
+            {
+                'type': 'debate.message', # Handler method name below
+                'message': message,
+                'sender': self.user.username,
+                'timestamp': str(timezone.now()),
+            }
+        )
 
-    # Receive message from room group
-    async def chat_message(self, event):
-        # Send message to WebSocket
+    async def send_video_signal(self, data):
+        """Relays WebRTC signaling data for peer-to-peer connection."""
+        # This is essential for voice/video calls
+        await self.channel_layer.group_send(
+            self.debate_group_name,
+            {
+                'type': 'debate.signal',
+                'signal_type': data.get('signal_type'), # e.g., 'offer', 'answer', 'ice'
+                'signal_data': data.get('signal_data'),
+                'sender_channel_name': self.channel_name,
+                'sender_id': self.user.id
+            }
+        )
+
+    # --- Handlers (Received from Channel Layer) ---
+
+    async def debate_message(self, event):
+        """Handler for 'debate.message' type sent by the group."""
         await self.send(text_data=json.dumps({
-            'username': event['username'],
+            'type': 'chat_message',
             'message': event['message'],
+            'sender': event['sender'],
             'timestamp': event['timestamp'],
         }))
 
-    @sync_to_async
-    def is_user_participant(self):
-        """Check if the user is a participant of the debate."""
-        try:
-            debate = Debate.objects.get(id=self.debate_id)
-            return debate.participants.filter(id=self.user.id).exists()
-        except Debate.DoesNotExist:
-            return False
-
-    @sync_to_async
-    def save_message(self, content):
-        """Saves the message to the database."""
-        debate = Debate.objects.get(id=self.debate_id)
-        Message.objects.create(debate=debate, user=self.user, content=content)
-
-    @sync_to_async
-    def get_current_time(self):
-        """Helper to get current time (used for timestamp in group send)"""
-        from django.utils import timezone
-        return timezone.now()
-
-
-
-# debates/consumers.py (Update the existing DebateConsumer class)
-import json
-from channels.generic.websocket import AsyncWebsocketConsumer
-# ... other imports ... 
-
-class DebateConsumer(AsyncWebsocketConsumer):
-    # ... (existing connect, disconnect, chat_message, save_message, etc. methods) ...
-    
-    # Receive message from WebSocket (Update the existing method)
-    async def receive(self, text_data):
-        text_data_json = json.loads(text_data)
-        
-        # Check for message type (chat or signal)
-        if 'message' in text_data_json:
-            # --- CHAT MESSAGE ---
-            message = text_data_json.get('message')
-            if message:
-                await self.save_message(message)
-
-                await self.channel_layer.group_send(
-                    self.debate_group_name,
-                    {
-                        'type': 'chat_message',
-                        'message': message,
-                        'username': self.user.username,
-                        'timestamp': str(await sync_to_async(self.get_current_time)()),
-                    }
-                )
-        
-        elif 'type' in text_data_json and 'signal' in text_data_json:
-            # --- WEBRTC SIGNALING MESSAGE ---
-            signal_type = text_data_json['type']
-            signal_data = text_data_json['signal']
-            
-            # Forward the signal to the target user or all users in the group
-            await self.channel_layer.group_send(
-                self.debate_group_name,
-                {
-                    'type': 'call_signal',
-                    'signal_type': signal_type,
-                    'signal': signal_data,
-                    'sender': self.user.username,
-                    'sender_channel_name': self.channel_name # Identify the sender's specific connection
-                }
-            )
-
-
-    # New Method: Receive/Forward call signals from room group
-    async def call_signal(self, event):
-        # Do not send the signal back to the sender
-        if self.channel_name != event['sender_channel_name']:
+    async def debate_signal(self, event):
+        """Handler for 'debate.signal' type (WebRTC)."""
+        # Only send the signal to other users, not back to the sender
+        if event['sender_channel_name'] != self.channel_name:
             await self.send(text_data=json.dumps({
-                'type': event['signal_type'],
-                'signal': event['signal'],
-                'sender': event['sender'],
+                'type': 'video_signal',
+                'signal_type': event['signal_type'],
+                'signal_data': event['signal_data'],
+                'sender_id': event['sender_id']
             }))
+    
+    # --- Database/Auth Checks (Helper methods) ---
+    
+    @database_sync_to_async
+    def is_user_authorized(self):
+        """Checks if the user is authenticated and the debate exists."""
+        from django.utils import timezone # Import here to avoid circular dependency issues
 
-    # ... (Keep existing async/sync methods: is_user_participant, save_message, get_current_time)
+        if not self.user.is_authenticated:
+            return False
+            
+        try:
+            debate = Debate.objects.get(pk=self.debate_id, status__in=['OPEN', 'ACTIVE'])
+            # You might add checks here: 
+            # 1. Has the user paid the fee? (Handled in DebateJoinView, but a good place for a final check)
+            # 2. Is the debate full?
+            return True
+        except Debate.DoesNotExist:
+            print(f"Debate {self.debate_id} not found or not open.")
+            return False

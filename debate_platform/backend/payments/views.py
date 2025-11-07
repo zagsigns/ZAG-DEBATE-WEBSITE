@@ -112,3 +112,63 @@ class BuyCreditsView(APIView):
 
         except Exception as e:
             return Response({"detail": f"Credit purchase failed: {e}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+
+# Insert this function into your payments/views.py file
+
+import stripe
+import os # For accessing environment variables/settings
+from django.views.decorators.csrf import csrf_exempt
+from django.http import HttpResponse
+from django.db import transaction # For database safety
+
+# --- Configuration (Set this in your settings.py or environment variables) ---
+STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET')
+# ---------------------------------------------------------------------------
+
+@csrf_exempt # CRITICAL: Disables Django's built-in CSRF protection for this endpoint only
+def stripe_webhook_view(request):
+    if request.method != 'POST':
+        return HttpResponse(status=405) # Method Not Allowed
+
+    payload = request.body
+    sig_header = request.META.get('HTTP_STRIPE_SIGNATURE')
+
+    try:
+        # **STEP 1: SECURITY - VERIFY THE SIGNATURE**
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, STRIPE_WEBHOOK_SECRET
+        )
+    except ValueError as e:
+        return HttpResponse('Invalid payload', status=400)
+    except stripe.error.SignatureVerificationError as e:
+        return HttpResponse('Invalid signature', status=400)
+
+    # **STEP 2: LOGIC - HANDLE THE EVENT**
+    data = event['data']['object']
+
+    if event['type'] == 'checkout.session.completed':
+        session = data
+        
+        # Use a transaction for safety
+        with transaction.atomic():
+            # Get the user_id you passed into the Checkout Session metadata
+            user_id = session.get('metadata', {}).get('user_id') 
+            
+            if user_id:
+                # Find your user and update their status/credits (using the logic from the previous answer)
+                # user = CustomUser.objects.get(id=user_id) 
+                # user.is_premium = True 
+                # user.save()
+                pass # Placeholder for your detailed update logic
+            
+            # TODO: Add logic for granting credits here
+
+    elif event['type'] == 'customer.subscription.deleted':
+        # TODO: Add logic here to set user.is_premium = False
+        pass
+
+    # **STEP 3: SUCCESS**
+    return HttpResponse(status=200)

@@ -6,8 +6,6 @@ from datetime import timedelta
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
-
 SECRET_KEY = 'django-insecure-your-secret-key-goes-here' # !!! REPLACE ME IN PRODUCTION !!!
 
 DEBUG = True
@@ -25,11 +23,11 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     # 2. Third-Party Apps (Required for Project)
-    'rest_framework',           # DRF for API endpoints
-    'djoser',                   # Optional: If you use Djoser for auth setup
-    'rest_framework_simplejwt', # JWT Token Auth
-    'corsheaders',              # For React frontend communication
-    'channels',                 # Real-time WebSocket support
+    'rest_framework',
+    'djoser',
+    'rest_framework_simplejwt',
+    'corsheaders',
+    'channels',
 
     # 3. Project Apps
     'accounts',
@@ -49,7 +47,8 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'zag_debate_platform.urls'
+# The URL configuration lives in the inner 'backend' directory
+ROOT_URLCONF = 'backend.urls'
 
 TEMPLATES = [
     {
@@ -61,15 +60,17 @@ TEMPLATES = [
                 'django.template.context_processors.debug',
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
-                'django.template.context_processors.messages',
+                # FIX 1: Corrected path for messages context processor
+                'django.contrib.messages.context_processors.messages',
             ],
         },
     },
 ]
 
-WSGI_APPLICATION = 'zag_debate_platform.wsgi.application'
+# FIX 2: Corrected the project name from 'zag_debate_platform' to 'backend'
+WSGI_APPLICATION = 'backend.wsgi.application'
 
-# --- Database (PostgreSQL recommended, using default SQLite for initial setup) ---
+# --- Database (using default SQLite for initial setup) ---
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
@@ -79,7 +80,10 @@ DATABASES = {
 
 # --- Password Validation ---
 AUTH_PASSWORD_VALIDATORS = [
-    # Standard validators...
+    { 'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator', },
+    { 'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator', },
+    { 'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator', },
+    { 'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator', },
 ]
 
 # --- Internationalization ---
@@ -106,11 +110,11 @@ REST_FRAMEWORK = {
 }
 
 # --- CORS Configuration (Essential for Frontend/Backend communication) ---
-# Allows the React development server (e.g., http://localhost:3000 or http://127.0.0.1:5173) to communicate
 CORS_ALLOW_ALL_ORIGINS = True # Allow all origins during development
 
 # --- Channels/WebSockets Configuration (Real-Time Setup) ---
-ASGI_APPLICATION = 'zag_debate_platform.asgi.application'
+# FIX 3: Corrected the project name from 'zag_debate_platform' to 'backend'
+ASGI_APPLICATION = 'backend.asgi.application'
 
 # Channel Layer Configuration: Using Redis for the channel layer
 CHANNEL_LAYERS = {
@@ -118,7 +122,6 @@ CHANNEL_LAYERS = {
         'BACKEND': 'channels_redis.pubsub.RedisChannelLayer',
         'CONFIG': {
             # Use a dummy in-memory configuration if Redis is not locally installed for development
-            # In a real setup, this would be: "hosts": [('127.0.0.1', 6379)],
             "hosts": [os.environ.get('REDIS_URL', 'redis://localhost:6379/')],
         },
     },
